@@ -245,11 +245,62 @@ nav button.on span{animation:bounce .5s var(--ease)}
 .unh{border-left:6px solid #1e1c1b}.unh.u1{border-left-color:#c8102e}
 
 /* ===== LOGIN + SINCRONIZAÇÃO (Supabase) ===== */
-#login{position:fixed;inset:0;z-index:99999;background:var(--dk);display:flex;align-items:center;justify-content:center;padding:20px}
-#login .box{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
-#login h1{margin:0 0 4px;font-size:21px;color:var(--dk)}
-#login p{margin:0 0 18px;color:var(--mut);font-size:14px}
-#login label{display:block;font-size:13px;fon<script type="text/plain" id="app-code">
+#login{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(900px 500px at 85% -10%,rgba(200,16,46,.28),transparent 60%),#1e1c1b;overflow:auto}
+#login[hidden]{display:none}
+#login .box{width:100%;max-width:360px;background:#fff;border-radius:20px;padding:28px 24px 24px;
+  box-shadow:0 24px 70px rgba(0,0,0,.45);text-align:center}
+#login .lg-logo{width:96px;height:96px;object-fit:cover;border-radius:20px;display:block;margin:0 auto 16px;
+  box-shadow:0 10px 28px rgba(0,0,0,.35);background:#1e1c1b}
+#login .lg-logo:not([src]){visibility:hidden}
+#login h1{margin:0;font-size:22px;line-height:1.2;color:#1e1c1b;letter-spacing:-.01em}
+#login .lg-sub{margin:4px 0 20px;color:var(--mut);font-size:14px}
+#login form{text-align:left}
+#login label{display:block;font-size:13px;font-weight:600;color:var(--tx);margin:14px 0 5px}
+#login .lg-campo{position:relative}
+#login input{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #d9d2ca;border-radius:10px;
+  font:inherit;font-size:16px;color:var(--tx);background:#fffdfb}
+#login input:focus-visible{outline:2px solid var(--c);outline-offset:1px;border-color:var(--c)}
+#login #lg-senha{padding-right:78px}
+#login .lg-ver{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--mut);
+  font:600 13px system-ui,sans-serif;padding:8px 10px;cursor:pointer;border-radius:8px}
+#login .lg-ver:focus-visible{outline:2px solid var(--c)}
+#login .lg-ok{width:100%;margin-top:20px;padding:13px;border:0;border-radius:10px;background:var(--c);color:#fff;
+  font:700 16px system-ui,sans-serif;cursor:pointer}
+#login .lg-ok:hover{background:var(--c2)}
+#login .lg-ok:focus-visible{outline:2px solid var(--dk);outline-offset:2px}
+#login .lg-ok:disabled{opacity:.65;cursor:wait}
+#login .lg-erro{margin-top:14px;min-height:18px;font-size:14px;color:var(--er);text-align:left}
+#login .lg-status{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--mut);font-size:15px;padding:6px 0 10px}
+#login .lg-spin{width:18px;height:18px;border-radius:50%;border:3px solid #e6dfd8;border-top-color:var(--c);animation:lgspin .8s linear infinite}
+@keyframes lgspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#login .lg-spin{animation-duration:2.4s}}
+#login .lg-retry{margin-top:12px;border:1px solid #d9d2ca;background:#fff;color:var(--tx);padding:10px 16px;border-radius:10px;font:600 14px system-ui,sans-serif;cursor:pointer}
+
+#nuvem-selo{position:fixed;right:10px;bottom:10px;z-index:9999;display:none;align-items:center;gap:10px;
+  font:600 12px system-ui,sans-serif;padding:6px 6px 6px 12px;border-radius:99px;background:#fff;color:var(--mut);box-shadow:var(--sh)}
+#nuvem-selo.on{display:flex}
+#nuvem-selo.ok{color:var(--ok)} #nuvem-selo.er{color:var(--er)}
+#nuvem-selo button{border:0;background:#f1ece7;color:var(--tx);font:600 12px system-ui,sans-serif;padding:5px 10px;border-radius:99px;cursor:pointer}
+@media print{#nuvem-selo,#login{display:none!important}}
+#login [hidden]{display:none!important}
+
+</style>
+</head>
+<body>
+<div id="splash"><img id="logoSplash" alt=""><div class="ln"></div></div>
+<header>
+  <h1><img class="logo" id="logoTopo" alt="Logo"><span><span id="lojaTopo">Sapataria</span><span class="sub">Controle e programação de produção</span></span></h1>
+  <button class="b sm" onclick="formOS()">+ Nova OS</button>
+</header>
+
+<div id="unbar"></div>
+<nav id="nav"></nav>
+<main id="app"></main>
+<div id="modal"><div id="mbox"></div></div>
+<div id="print"></div>
+
+<script type="text/plain" id="app-code">
 /* =========================================================================
    SAPATARIA – CONTROLE E PROGRAMAÇÃO DE PRODUÇÃO
    HTML/JS em arquivo único · dados no localStorage do navegador.
@@ -325,7 +376,7 @@ migrar();
 
 const save = () => {
   localStorage.setItem(KEY, JSON.stringify(S));
-  localStorage.setItem('sap_pendente', '1');   // há alteração ainda não enviada à nuvem
+  localStorage.setItem('sap_pendente', '1');   // alteração ainda não enviada à nuvem
   if(window.Nuvem) Nuvem.agendar();
 };
 const C = () => S.config;
@@ -1179,133 +1230,179 @@ document.getElementById('logoSplash').src = LOGO;
 setTimeout(() => document.getElementById('splash').classList.add('off'), 1100);
 render();
 </script>
+
 <!-- ===== Login + banco de dados (Supabase) ===== -->
-<div id="login" hidden>
+<div id="login">
   <div class="box">
+    <div class="lg-top"><img class="lg-logo" id="lg-logo" alt="Sapataria Pimentel"></div>
     <h1>Sapataria Pimentel</h1>
-    <p>Entre para acessar o controle de produção.</p>
-    <label for="lg-email">E-mail</label>
-    <input id="lg-email" type="email" autocomplete="username" inputmode="email">
-    <label for="lg-senha">Senha</label>
-    <input id="lg-senha" type="password" autocomplete="current-password">
-    <button id="lg-ok" type="button">Entrar</button>
-    <div class="erro" id="lg-erro" role="alert"></div>
+    <p class="lg-sub">Controle e programação de produção</p>
+
+    <div class="lg-status" id="lg-status" role="status"><span class="lg-spin" aria-hidden="true"></span><span id="lg-status-txt">Conectando…</span></div>
+
+    <form id="lg-form" hidden>
+      <label for="lg-email">E-mail</label>
+      <input id="lg-email" type="email" autocomplete="username" inputmode="email" required>
+      <label for="lg-senha">Senha</label>
+      <div class="lg-campo">
+        <input id="lg-senha" type="password" autocomplete="current-password" required>
+        <button type="button" class="lg-ver" id="lg-ver" aria-pressed="false">Mostrar</button>
+      </div>
+      <button type="submit" class="lg-ok" id="lg-ok">Entrar</button>
+    </form>
+
+    <div class="lg-erro" id="lg-erro" role="alert"></div>
+    <button type="button" class="lg-retry" id="lg-retry" hidden>Tentar novamente</button>
   </div>
 </div>
 <div id="nuvem-selo"><span id="nuvem-txt"></span><button type="button" id="nuvem-sair">Sair</button></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-const SUPABASE_URL  = 'https://phkdpvphcfilvuhtrabn.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoa2RwdnBoY2ZpbHZ1aHRyYWJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1OTk4MjMsImV4cCI6MjEwNzE3NTgyM30.13DYoPebilwVC3v6Tgp-ub5q3Fv0eIboC8zp0dFikPk';   // chave pública (anon). Nunca coloque a service_role aqui.
-const TABELA = 'sapataria_estado', LINHA = 'principal', CHAVE_LOCAL = 'sapataria_v3';
+(function(){
+  const SUPABASE_URL  = 'https://phkdpvphcfilvuhtrabn.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoa2RwdnBoY2ZpbHZ1aHRyYWJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1OTk4MjMsImV4cCI6MjEwNzE3NTgyM30.13DYoPebilwVC3v6Tgp-ub5q3Fv0eIboC8zp0dFikPk';   // chave pública (anon). Nunca coloque a service_role aqui.
+  const TABELA = 'sapataria_estado', LINHA = 'principal', CHAVE_LOCAL = 'sapataria_v3';
+  const byId = id => document.getElementById(id);
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-const byId = id => document.getElementById(id);
-
-function selo(estado, txt){
-  const s = byId('nuvem-selo'); s.className = 'on ' + estado; byId('nuvem-txt').textContent = txt;
-}
-
-const Nuvem = {
-  _t: null, _enviando: false,
-  agendar(){ clearTimeout(this._t); selo('', 'Salvando…'); this._t = setTimeout(() => this.enviar(), 800); },
-  async enviar(){
-    if(this._enviando){ this.agendar(); return; }
-    this._enviando = true;
-    try{
-      const { error } = await sb.from(TABELA).upsert({ id: LINHA, dados: S, atualizado_em: new Date().toISOString() });
-      if(error) throw error;
-      localStorage.removeItem('sap_pendente');
-      selo('ok', 'Salvo na nuvem');
-    }catch(e){
-      console.error('Falha ao salvar na nuvem', e);
-      selo('er', 'Sem conexão — será reenviado');
-      this._t = setTimeout(() => this.enviar(), 15000);
-    }finally{ this._enviando = false; }
+  /* ---------- utilidades de tela ---------- */
+  function selo(estado, txt){ const s = byId('nuvem-selo'); s.className = 'on ' + estado; byId('nuvem-txt').textContent = txt; }
+  function status(txt){ byId('lg-status').hidden = !txt; byId('lg-status-txt').textContent = txt || ''; }
+  function erro(txt){ byId('lg-erro').textContent = txt || ''; }
+  function falhaGrave(txt){
+    status(''); byId('lg-form').hidden = true; erro(txt);
+    const r = byId('lg-retry'); r.hidden = false; r.onclick = () => location.reload();
   }
-};
-window.Nuvem = Nuvem;
-document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'hidden' && localStorage.getItem('sap_pendente') && typeof S !== 'undefined') Nuvem.enviar();
-});
+  const comTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
-function pedirLogin(){
-  return new Promise(resolve => {
-    byId('login').hidden = false;
-    const entrar = async () => {
-      const btn = byId('lg-ok'), erro = byId('lg-erro');
-      erro.textContent = ''; btn.disabled = true; btn.textContent = 'Entrando…';
-      const { error } = await sb.auth.signInWithPassword({ email: byId('lg-email').value.trim(), password: byId('lg-senha').value });
-      btn.disabled = false; btn.textContent = 'Entrar';
-      if(error){ erro.textContent = 'E-mail ou senha incorretos.'; return; }
-      byId('login').hidden = true; resolve();
-    };
-    byId('lg-ok').onclick = entrar;
-    byId('lg-senha').onkeydown = e => { if(e.key === 'Enter') entrar(); };
-    byId('lg-email').onkeydown = e => { if(e.key === 'Enter') byId('lg-senha').focus(); };
-  });
-}
+  /* A logo já está embutida no código do sistema; reaproveita na tela de login. */
+  (function logo(){
+    const m = byId('app-code').textContent.match(/const LOGO\s*=\s*'([^']+)'/);
+    if(m){ byId('lg-logo').src = m[1]; byId('logoSplash').src = m[1]; }
+  })();
 
-async function iniciar(){
-  try{
-    let { data:{ session } } = await sb.auth.getSession();
-    if(!session) await pedirLogin();
+  if(!window.supabase || !window.supabase.createClient){
+    falhaGrave('Não foi possível carregar o sistema de login. Verifique a internet e tente de novo.');
+    return;
+  }
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // Alteração local ainda não enviada? Envia primeiro, para não perder.
-    // Banco vazio e dados locais existentes? Também envia (primeira migração).
-    const { data, error } = await sb.from(TABELA).select('dados').eq('id', LINHA).maybeSingle();
-    if(error) throw error;
-    const local = localStorage.getItem(CHAVE_LOCAL);
-    if(data && !localStorage.getItem('sap_pendente')){
-      localStorage.setItem(CHAVE_LOCAL, JSON.stringify(data.dados));
-    }else if(local){
-      const { error: e2 } = await sb.from(TABELA).upsert({ id: LINHA, dados: JSON.parse(local), atualizado_em: new Date().toISOString() });
-      if(e2) throw e2;
-      localStorage.removeItem('sap_pendente');
+  /* ---------- envio para a nuvem ---------- */
+  const Nuvem = {
+    _t: null, _enviando: false,
+    agendar(){ clearTimeout(this._t); selo('', 'Salvando…'); this._t = setTimeout(() => this.enviar(), 800); },
+    async enviar(){
+      if(this._enviando){ this.agendar(); return; }
+      this._enviando = true;
+      try{
+        const { error } = await sb.from(TABELA).upsert({ id: LINHA, dados: S, atualizado_em: new Date().toISOString() });
+        if(error) throw error;
+        localStorage.removeItem('sap_pendente');
+        selo('ok', 'Salvo na nuvem');
+      }catch(e){
+        console.error('Falha ao salvar na nuvem', e);
+        selo('er', msgBanco(e) || 'Sem conexão — será reenviado');
+        this._t = setTimeout(() => this.enviar(), 15000);
+      }finally{ this._enviando = false; }
     }
-    selo('ok', 'Conectado à nuvem');
-  }catch(e){
-    console.error(e);
-    selo('er', 'Sem conexão — usando dados deste aparelho');
+  };
+  window.Nuvem = Nuvem;
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'hidden' && localStorage.getItem('sap_pendente') && typeof S !== 'undefined') Nuvem.enviar();
+  });
+
+  function msgBanco(e){
+    const t = ((e && (e.code || '')) + ' ' + (e && (e.message || ''))).toLowerCase();
+    if(t.includes('42p01') || t.includes('pgrst205') || t.includes('could not find the table'))
+      return 'Banco não configurado: rode o SQL da tabela no Supabase';
+    if(t.includes('42501') || t.includes('row-level security') || t.includes('permission denied'))
+      return 'Sem permissão no banco: confira a política do Supabase';
+    return '';
   }
 
-  byId('nuvem-sair').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  /* ---------- login ---------- */
+  function pedirLogin(){
+    return new Promise(resolve => {
+      status(''); erro('');
+      const form = byId('lg-form'), email = byId('lg-email'), senha = byId('lg-senha'), btn = byId('lg-ok');
+      form.hidden = false;
+      email.value = localStorage.getItem('sap_email') || '';
+      (email.value ? senha : email).focus();
 
-  // Só agora o sistema original começa a rodar.
-  const s = document.createElement('script');
-  s.textContent = byId('app-code').textContent;
-  document.body.appendChild(s);
-}
-iniciar();
+      byId('lg-ver').onclick = function(){
+        const ver = senha.type === 'password';
+        senha.type = ver ? 'text' : 'password';
+        this.textContent = ver ? 'Ocultar' : 'Mostrar';
+        this.setAttribute('aria-pressed', String(ver));
+      };
+
+      form.onsubmit = async ev => {
+        ev.preventDefault();
+        erro(''); btn.disabled = true; btn.textContent = 'Entrando…';
+        let res;
+        try{
+          res = await comTimeout(sb.auth.signInWithPassword({ email: email.value.trim(), password: senha.value }), 15000);
+        }catch(e){ res = { error: { message: 'rede' } }; }
+        btn.disabled = false; btn.textContent = 'Entrar';
+        if(res.error){
+          const m = (res.error.message || '').toLowerCase();
+          erro(m.includes('invalid') || res.error.status === 400
+            ? 'E-mail ou senha incorretos.'
+            : 'Não foi possível conectar. Verifique a internet e tente de novo.');
+          senha.select();
+          return;
+        }
+        localStorage.setItem('sap_email', email.value.trim());
+        senha.value = '';
+        form.hidden = true;
+        resolve();
+      };
+    });
+  }
+
+  /* ---------- sincronização inicial ---------- */
+  async function sincronizar(){
+    status('Carregando seus dados…');
+    try{
+      const { data, error } = await comTimeout(sb.from(TABELA).select('dados').eq('id', LINHA).maybeSingle(), 15000);
+      if(error) throw error;
+      const local = localStorage.getItem(CHAVE_LOCAL);
+      if(data && !localStorage.getItem('sap_pendente')){
+        localStorage.setItem(CHAVE_LOCAL, JSON.stringify(data.dados));          // nuvem manda
+      }else if(local){
+        const r = await comTimeout(sb.from(TABELA).upsert({ id: LINHA, dados: JSON.parse(local), atualizado_em: new Date().toISOString() }), 15000);
+        if(r.error) throw r.error;                                               // 1ª migração ou alteração pendente
+        localStorage.removeItem('sap_pendente');
+      }
+      selo('ok', 'Conectado à nuvem');
+    }catch(e){
+      console.error(e);
+      selo('er', msgBanco(e) || 'Sem conexão — usando dados deste aparelho');
+    }
+  }
+
+  function abrirSistema(){
+    byId('login').hidden = true;
+    byId('nuvem-sair').onclick = async () => { try{ await sb.auth.signOut(); }catch(e){} location.reload(); };
+    const s = document.createElement('script');
+    s.textContent = byId('app-code').textContent;
+    document.body.appendChild(s);
+  }
+
+  (async function iniciar(){
+    try{
+      let sessao = null;
+      try{ sessao = (await comTimeout(sb.auth.getSession(), 8000)).data.session; }catch(e){ sessao = null; }
+      if(!sessao) await pedirLogin();
+      await sincronizar();
+      abrirSistema();
+    }catch(e){
+      console.error(e);
+      falhaGrave('Algo deu errado ao abrir o sistema. Recarregue a página.');
+    }
+  })();
+})();
 </script>
-else el.textContent = t; };
-  requestAnimationFrame(passo);
-}
-function animar(){
-  const alvos = document.querySelectorAll('#app > .card, #app > .grid > .card, #lista > .card, #listaCli > .card, #app > .seg');
-  alvos.forEach((el,i) => { el.classList.remove('rv'); void el.offsetWidth; el.style.animationDelay = Math.min(i,14)*45 + 'ms'; el.classList.add('rv'); });
-  document.querySelectorAll('.kpi b').forEach(contar);
-}
-const _render = render;
-render = function(){ _render(); animar(); };
-const _vOSLista = vOSLista;
-vOSLista = function(){ _vOSLista(); document.querySelectorAll('#lista > .card').forEach((el,i) => { el.style.animationDelay = Math.min(i,10)*30+'ms'; el.classList.add('rv'); }); };
-const _vCliLista = vCliLista;
-vCliLista = function(){ _vCliLista(); document.querySelectorAll('#listaCli > .card').forEach((el,i) => { el.style.animationDelay = Math.min(i,10)*30+'ms'; el.classList.add('rv'); }); };
 
-/* efeito de toque nos botões */
-document.addEventListener('click', e => {
-  const b = e.target.closest('button.b'); if(!b) return;
-  const r = b.getBoundingClientRect(), s = Math.max(r.width,r.height), sp = document.createElement('span');
-  sp.className = 'rp'; sp.style.cssText = 'width:'+s+'px;height:'+s+'px;left:'+(e.clientX-r.left-s/2)+'px;top:'+(e.clientY-r.top-s/2)+'px';
-  b.appendChild(sp); setTimeout(() => sp.remove(), 600);
-});
-
-/* abertura */
-document.getElementById('logoSplash').src = LOGO;
-setTimeout(() => document.getElementById('splash').classList.add('off'), 1100);
-render();
-</script>
 </body>
 </html>
