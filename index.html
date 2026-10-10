@@ -298,14 +298,17 @@ nav button.on span{animation:bounce .5s var(--ease)}
 .etq-mid.inl .s+.s::before{content:' · ';font-weight:400}
 .etq-mid.inl .o{display:block}
 .etq-mid .o{font-size:6.5pt;margin-top:.8mm;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.etq-bot{border-top:.4mm solid #000;padding-top:.8mm;font-size:7pt;font-weight:700;line-height:1.2}
+.etq-bot{border-top:.4mm solid #000;padding-top:.8mm;font-size:11pt;font-weight:900;line-height:1.2;white-space:nowrap}
+.etq-par{font-size:11pt;font-weight:900;border:.35mm solid #000;border-radius:1mm;padding:0 1.2mm;line-height:1.25}
 .etq-bot .l1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .etq-bot .l2{display:flex;justify-content:space-between;align-items:center;gap:2mm}
 .etq-urg{border:.35mm solid #000;padding:0 1mm;font-weight:900;letter-spacing:.02em}
 @media print{
   body.etq-mode{background:#fff!important;padding:0!important;margin:0!important}
   body.etq-mode::before,body.etq-mode::after{display:none!important}
-  body.etq-mode #print{width:50mm;height:40mm;overflow:hidden}
+  body.etq-mode #print{width:50mm}
+  body.etq-mode .etq{break-after:page;page-break-after:always}
+  body.etq-mode .etq:last-child{break-after:auto;page-break-after:auto}
 }
 
 </style>
@@ -357,6 +360,7 @@ const PADRAO = {
     usaSabado:false,       // sábado entra na fila de produção?
     proxNumero:2720,       // ← primeira OS definida pelo usuário
     diasParado:7,
+    tempoPar:1,            // horas sugeridas para cada par novo
     tempos:{ 'meia-sola':1.5,'salto':0.75,'costura':0.5,'limpeza':0.5,'tintura':1,'zíper':0.75,'outros':1 },
     msgs:{
       pronto:'Olá, {nome}! Seu {item} (OS nº {numero}) está pronto para retirada. Horário: {horario}. Valor: {valor}. {situacaoPag}',
@@ -394,6 +398,15 @@ function migrar(){
     ];
   }
   S.os.forEach(o => { if(!o.unidade || !c.unidades.some(u => u.id === o.unidade)) o.unidade = c.unidades[0].id; });
+  // OS antigas (com checkboxes de serviço) viram uma OS com 1 par
+  S.os.forEach(o => {
+    if(Array.isArray(o.pares) && o.pares.length) return;
+    const sv = o.servicos || [];
+    const h0 = sv.reduce((t,x) => t + (+(c.tempos||{})[x] || 1), 0) || 1;
+    const base = sv.join(' + ');
+    o.pares = [{ fazer: base ? (o.item ? `${base} (${o.item})` : base) : (o.item || ''), horas:h0 }];
+    o.legado = true;
+  });
 }
 migrar();
 
@@ -423,7 +436,11 @@ function renderUnbar(){
 }
 
 /* ==================== 3. REGRAS DE NEGÓCIO / CÁLCULOS ================== */
-const horasOS = o => Math.max(.25, (o.servicos||[]).reduce((t,s) => t + (+C().tempos[s] || 1), 0) || 1);
+const horasOS = o => Math.max(.25, (o.pares||[]).reduce((t,p) => t + (+p.horas || +C().tempoPar || 1), 0) || 1);
+const itemMsg = o => (o.legado && o.item) ? o.item : 'conserto';   // texto usado nas mensagens de WhatsApp
+const parTxt  = p => h(p.fazer||'').replace(/\n/g, ' + ');
+const parLista = o => { const ps = o.pares||[];
+  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)} <span style="color:var(--mut)">(${+p.horas||0}h)</span>`).join('<br>'); };
 const pago    = o => (o.pagamentos||[]).reduce((t,p) => t + (+p.valor||0), 0);
 const saldo   = o => Math.max(0, (+o.valor||0) - (+o.desconto||0) - pago(o));
 const ABERTOS = ['Recebido','Em fila','Em execução'];
@@ -497,7 +514,7 @@ function montar(o, tipo){
   const tpl = (C().msgs[tipo] || '');
   const vals = {
     nome: (o.cliente||'').trim().split(/\s+/)[0] || '',
-    item:o.item||'', numero:o.numero,
+    item:itemMsg(o), numero:o.numero,
     horario:unid(o).horario, loja:C().loja + ' – ' + unid(o).curto, unidade:unid(o).curto,
     valor:R(o.valor), saldo:R(saldo(o)), pago:R(pago(o)),
     prazoPag:o.promessa ? fd(o.promessa) : 'a combinar',
@@ -802,7 +819,7 @@ function detalhe(id){
   <div class="hint">
     ${h(o.cliente)} · ${h(o.telefone)}<br>
     Entrada ${fd(o.entrada)} · Prazo ${fd(o.prazo)}${aberta(o)&&o._prev?` · Previsão ${fd(o._prev)}`:''}<br>
-    Serviços: ${o.servicos.join(', ') || '—'} · ${horasOS(o).toFixed(1)} h previstas<br>
+    <b>O que fazer:</b><br>${parLista(o)}<br>Total previsto: ${horasOS(o).toFixed(1)} h<br>
     Responsável: ${h(o.responsavel || '—')}<br>
     ${o.obs ? '<b>Obs.:</b> ' + h(o.obs) : ''}
   </div>
@@ -843,7 +860,8 @@ function detalhe(id){
 
   <div class="sep"></div>
   <button class="b" onclick="imprimir(${o.id})">🖨️ Imprimir (2 vias)</button>
-  <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ Etiqueta 5×4 cm</button>
+  <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${(o.pares||[]).length>1 ? 'Todas as etiquetas ('+o.pares.length+')' : 'Etiqueta 5×4 cm'}</button>
+  ${(o.pares||[]).length>1 ? o.pares.map((_,i) => `<button class="b sec sm" onclick="imprimirEtiqueta(${o.id},${i})">🏷️ Par ${i+1}</button>`).join('') : ''}
   <button class="b sec" onclick="formOS(${o.id})">✏️ Editar</button>
   ${!['Cancelado','Entregue'].includes(o.status) ? `<button class="b er" onclick="mudar(${o.id},'Cancelado');fechar()">Cancelar OS</button>` : ''}
   <button class="b sec" onclick="fechar()">Fechar</button>
@@ -867,11 +885,38 @@ function negociar(id){
 }
 
 /* ============ 13. FORMULÁRIO DE OS (criar / editar, nº editável) ===== */
+let PARES = [], PAR_ATIVO = 0;
+function renderPares(){
+  const box = document.getElementById('pares'); if(!box) return;
+  const p = PARES[PAR_ATIVO], n = PARES.length;
+  box.innerHTML = `
+  <div class="seg">
+    ${PARES.map((x,i) => `<button type="button" class="b sm ${i===PAR_ATIVO?'':'sec'}" onclick="parSel(${i})">Par ${i+1}</button>`).join('')}
+    <button type="button" class="b sm ok" onclick="parAdd()">+ Par</button>
+  </div>
+  <label style="margin-top:8px">O que fazer${n>1 ? ` no par ${PAR_ATIVO+1} de ${n}` : ''} <span style="font-weight:400">(uma tarefa por linha — sai na etiqueta)</span></label>
+  <textarea id="fz" placeholder="ex.: trocar meia-sola&#10;costurar o bico" oninput="PARES[PAR_ATIVO].fazer=this.value">${h(p.fazer)}</textarea>
+  <div class="row">
+    <div><label>Tempo previsto (h)</label><input id="fh" type="number" step="0.25" min="0.25" inputmode="decimal" value="${p.horas}" oninput="PARES[PAR_ATIVO].horas=+this.value||0"></div>
+    <div>${n>1 ? `<label>&nbsp;</label><button type="button" class="b er" style="width:100%;margin:3px 0 9px" onclick="parDel()">Remover este par</button>` : ''}</div>
+  </div>`;
+}
+function parSel(i){ PAR_ATIVO = i; renderPares(); }
+function parAdd(){ PARES.push({ fazer:'', horas:+C().tempoPar || 1 }); PAR_ATIVO = PARES.length - 1; renderPares();
+  const t = document.getElementById('fz'); if(t) t.focus(); }
+function parDel(){
+  if(PARES.length < 2) return;
+  if((PARES[PAR_ATIVO].fazer||'').trim() && !confirm(`Remover o par ${PAR_ATIVO+1}?`)) return;
+  PARES.splice(PAR_ATIVO, 1); PAR_ATIVO = Math.max(0, PAR_ATIVO - 1); renderPares();
+}
 function formOS(id){
   const o = id ? get(id) : {
     unidade:uDef(), numero:UN(uDef()).proxNumero, entrada:hoje(), prazo:addDia(hoje(),3),
-    servicos:[], prioridade:'normal', valor:'', desconto:0
+    pares:[], prioridade:'normal', valor:'', desconto:0
   };
+  PARES = (o.pares||[]).map(p => ({ fazer:p.fazer||'', horas:+p.horas || +C().tempoPar || 1 }));
+  if(!PARES.length) PARES = [{ fazer:'', horas:+C().tempoPar || 1 }];
+  PAR_ATIVO = 0;
   modal(`
   <h3>${id ? 'Editar' : 'Nova'} Ordem de Serviço</h3>
   <label>🏬 Unidade</label>
@@ -888,11 +933,8 @@ function formOS(id){
     <div><label>Data de entrada</label><input id="fe" type="date" value="${o.entrada}"></div>
     <div><label>Prazo prometido</label><input id="fp" type="date" value="${o.prazo}"></div>
   </div>
-  <label>Item (ex.: bota preta)</label><input id="fi" value="${h(o.item||'')}">
-  <label>Serviços</label>
-  <div class="chk" id="fs">
-    ${Object.keys(C().tempos).map(s => `<label><input type="checkbox" value="${s}" ${o.servicos.includes(s)?'checked':''}>${s} <small>(${C().tempos[s]}h)</small></label>`).join('')}
-  </div>
+  <label>🔧 Conserto — um par por aba</label>
+  <div id="pares"></div>
   <div class="row3">
     <div><label>Valor (R$)</label><input id="fv" type="number" step="0.01" inputmode="decimal" value="${o.valor}" oninput="if(document.getElementById('pgr'))pgSel()"></div>
     <div><label>Prioridade</label><select id="fpr"><option>normal</option><option ${o.prioridade==='urgente'?'selected':''}>urgente</option></select></div>
@@ -913,17 +955,21 @@ function formOS(id){
   ${id ? '' : `<label style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-weight:600;cursor:pointer"><input type="checkbox" id="fetq" style="width:auto;margin:0" ${localStorage.getItem('sap_etq') !== '0' ? 'checked' : ''}>🏷️ Imprimir etiqueta 5×4 cm ao salvar</label>`}
   <button class="b" onclick="salvarOS(${id||0})">Salvar OS</button>
   <button class="b sec" onclick="fechar()">Cancelar</button>`);
+  renderPares();
 }
 function salvarOS(id){
   const n   = +document.getElementById('fn').value;
   const tel = document.getElementById('ft').value.replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'').replace(/^0+/,'');
   const cli = document.getElementById('fc').value.trim();
-  const it  = document.getElementById('fi').value.trim();
+  const pares = PARES.map(p => ({ fazer:(p.fazer||'').trim(), horas:+p.horas || +C().tempoPar || 1 }));
+  const vazio = pares.findIndex(p => !p.fazer);
+  const it  = pares.map(p => p.fazer.replace(/\s*\n\s*/g, ' + ')).join(' | ');
   const fe  = document.getElementById('fe').value;
   const fp  = document.getElementById('fp').value;
   const un  = (document.querySelector('input[name=fu]:checked') || {}).value || uDef();
 
-  if(!cli || !it) return alert('Preencha o nome do cliente e o item.');
+  if(!cli) return alert('Preencha o nome do cliente.');
+  if(vazio >= 0){ PAR_ATIVO = vazio; renderPares(); return alert(`Descreva o que fazer no par ${vazio+1}.`); }
   if(tel.length < 10 || tel.length > 11) return alert('Telefone inválido. Use DDD + número, ex.: (11) 99999-9999.');
   if(!(n > 0)) return alert('Informe um número de OS válido.');
   if(S.os.some(x => x.numero === n && x.id !== id && x.unidade === un)) return alert('Já existe uma OS com esse número nesta unidade.');
@@ -932,7 +978,7 @@ function salvarOS(id){
   const dados = {
     unidade:un, numero:n, cliente:cli, telefone:document.getElementById('ft').value.trim(),
     entrada:fe, prazo:fp, item:it,
-    servicos:[...document.querySelectorAll('#fs input:checked')].map(x => x.value),
+    pares, legado:false,
     valor:+document.getElementById('fv').value || 0,
     prioridade:document.getElementById('fpr').value,
     responsavel:document.getElementById('fr').value.trim(),
@@ -982,8 +1028,7 @@ function imprimir(id){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><img src="${LOGO}" style="height:50px;background:#1e1c1b;border-radius:6px"><h2 style="margin:0">${h(C().loja)} · ${h(unid(o).curto)} — ${t}</h2></div>
       <h3>Ordem de Serviço nº ${o.numero}</h3>
       ${linha('Cliente', o.cliente)}${linha('Telefone', o.telefone)}
-      ${linha('Item', o.item)}
-      ${linha('Serviços', o.servicos.join(', '))}
+      ${(o.pares||[]).map((p,i) => linha((o.pares.length>1 ? 'Par ' + (i+1) + ' – ' : '') + 'O que fazer', (p.fazer||'').replace(/\n/g, ' + '))).join('')}
       ${linha('Entrada', fd(o.entrada))}${linha('Prazo prometido', fd(o.prazo))}
       ${linha('Prioridade', o.prioridade.toUpperCase())}
       ${prod
@@ -1001,35 +1046,31 @@ function imprimir(id){
 }
 
 /* ================= 14C. ETIQUETA 5×4 cm (adesivo para o calçado) ========
-   Mostra: nº da OS (grande), o que fazer no calçado (serviços + observações),
-   item, primeiro nome do cliente, prazo e unidade. Preto e branco (térmica). */
-function htmlEtiqueta(o){
-  const nome  = (o.cliente||'').trim().split(/\s+/)[0] || '';
+   Uma etiqueta por PAR. Mostra só: nº da OS (grande), o que fazer naquele par
+   e o prazo de entrega. Se a OS tem vários pares, mostra também "1/3". */
+function htmlEtiqueta(o, i){
+  const ps = o.pares || [], p = ps[i] || { fazer:'' };
   const prazo = o.prazo ? fd(o.prazo).slice(0,5) : '—';
-  const servs = (o.servicos||[]).length
-    ? o.servicos.map(s => `<div class="s">${h(s)}</div>`).join('')
-    : '<div class="s">—</div>';
+  const linhas = (p.fazer||'').split(/\n+/).map(x => x.trim()).filter(Boolean);
+  const servs = linhas.length ? linhas.map(x => `<div class="s">${h(x)}</div>`).join('') : '<div class="s">—</div>';
   return `<div class="etq">
-    <div class="etq-top"><span class="etq-os"><small>OS</small>${h(o.numero)}</span><span class="etq-un">${h(unid(o).curto)}</span></div>
-    <div class="etq-mid">${servs}${o.obs ? `<div class="o">${h(o.obs)}</div>` : ''}</div>
-    <div class="etq-bot">
-      <div class="l1">${h(o.item||'')}${nome ? ' · ' + h(nome) : ''}</div>
-      <div class="l2"><span>Prazo ${prazo}</span>${o.prioridade === 'urgente' ? '<span class="etq-urg">URGENTE</span>' : ''}</div>
-    </div>
+    <div class="etq-top"><span class="etq-os"><small>OS</small>${h(o.numero)}</span>${ps.length>1 ? `<span class="etq-par">${i+1}/${ps.length}</span>` : ''}</div>
+    <div class="etq-mid">${servs}</div>
+    <div class="etq-bot">Prazo: ${prazo}</div>
   </div>`;
 }
-/* Monta fora da tela e diminui a letra dos serviços até caber nos 4 cm de altura. */
-function etiquetaPronta(o){
+/* Monta fora da tela e diminui a letra até caber nos 4 cm de altura. */
+function etiquetaPronta(o, i){
   const t = document.createElement('div');
   t.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden';
-  t.innerHTML = htmlEtiqueta(o);
+  t.innerHTML = htmlEtiqueta(o, i);
   document.body.appendChild(t);
   const mid = t.querySelector('.etq-mid');
   const cabeAgora = () => mid.scrollHeight <= mid.clientHeight + 1;
   const reduzir = (ini, min) => { let fs = ini; mid.style.setProperty('--fs', fs + 'pt');
     while(!cabeAgora() && fs > min){ fs -= .5; mid.style.setProperty('--fs', fs + 'pt'); } };
-  reduzir(13, 8);                                   // 1º: um serviço por linha
-  if(!cabeAgora()){ mid.classList.add('inl'); reduzir(11, 6); }   // 2º: serviços lado a lado
+  reduzir(16, 8);                                   // 1º: uma tarefa por linha
+  if(!cabeAgora()){ mid.classList.add('inl'); reduzir(11, 6); }   // 2º: tarefas lado a lado
   const cabe = cabeAgora();
   const html = t.innerHTML;
   t.remove();
@@ -1039,11 +1080,14 @@ function limparEtiqueta(){
   const st = document.getElementById('etq-page'); if(st) st.remove();
   document.body.classList.remove('etq-mode');
 }
-function imprimirEtiqueta(id){
+/* Sem idx: imprime uma etiqueta para CADA par da OS. Com idx: só aquele par. */
+function imprimirEtiqueta(id, idx){
   const o = get(id); if(!o) return;
-  const { html, cabe } = etiquetaPronta(o);
-  if(!cabe && !confirm('O texto não cabe inteiro na etiqueta 5×4 cm e será cortado. Imprimir mesmo assim?')) return;
-  document.getElementById('print').innerHTML = html;
+  const idxs = idx == null ? (o.pares||[]).map((_, i) => i) : [idx];
+  if(!idxs.length) return alert('Esta OS não tem nenhum par cadastrado.');
+  const rs = idxs.map(i => etiquetaPronta(o, i));
+  if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos 5×4 cm e será cortado. Imprimir mesmo assim?')) return;
+  document.getElementById('print').innerHTML = rs.map(r => r.html).join('');
   const st = document.createElement('style');           // tamanho de página só durante a etiqueta
   st.id = 'etq-page';
   st.textContent = '@page{size:50mm 40mm;margin:0}';
@@ -1152,7 +1196,7 @@ function vCliLista(){
 }
 function enviarCli(fone, tipo){
   const c = listaClientes().find(x => x.fone === fone); if(!c) return;
-  const v = { nome:(c.nome||'').trim().split(/\s+/)[0], item:c.ultima.item, numero:c.ultima.numero,
+  const v = { nome:(c.nome||'').trim().split(/\s+/)[0], item:itemMsg(c.ultima), numero:c.ultima.numero,
               loja:C().loja + ' – ' + UN(c.ultima.unidade).curto, unidade:UN(c.ultima.unidade).curto,
               horario:UN(c.ultima.unidade).horario, dias:c.dias };
   const texto = (C().msgs[tipo] || '').replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '');
@@ -1200,9 +1244,10 @@ function vCfg(){
     <div class="hint" style="margin-top:6px">A numeração é independente: defina aqui a primeira OS da unidade e o sistema segue a sequência a partir dela. Sábado é só atendimento por padrão; domingo é sempre pulado.</div>
   </div>`).join('')}
 
-  <div class="card"><h3>⏱️ Tempo padrão por serviço (horas)</h3>
-    <div class="row">${Object.entries(c.tempos).map(([k,v]) =>
-      `<div><label>${k}</label><input class="tp" data-k="${k}" type="number" step="0.25" value="${v}"></div>`).join('')}</div>
+  <div class="card"><h3>⏱️ Tempo padrão por par (horas)</h3>
+    <label>Tempo sugerido para cada par novo na OS</label>
+    <input id="tpar" type="number" step="0.25" min="0.25" value="${c.tempoPar||1}">
+    <div class="hint">Cada par pode ter um tempo diferente dentro da OS; este é só o valor inicial.</div>
   </div>
 
   <div class="card"><h3>💬 Mensagens de WhatsApp</h3>
@@ -1240,7 +1285,7 @@ function salvarCfg(){
     if(mx >= n && !confirm(`${u.curto}: já existem OS até o nº ${mx}. Manter o próximo em ${n} pode repetir a numeração. Continuar?`))
       u.proxNumero = mx + 1;
   });
-  document.querySelectorAll('.tp').forEach(i => c.tempos[i.dataset.k] = +i.value || 0);
+  c.tempoPar = Math.max(.25, +document.getElementById('tpar').value || 1);
   document.querySelectorAll('.mg').forEach(i => c.msgs[i.dataset.k] = i.value);
   save(); render(); alert('Configurações salvas ✅');
 }function backup(){
