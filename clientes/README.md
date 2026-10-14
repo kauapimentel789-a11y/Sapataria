@@ -7,3 +7,8 @@ Para publicar outro cliente, crie um projeto na Vercel ligado a este repositóri
 
 - Build Command: `cp clientes/NOME/config.js config.js`
 - Output Directory: `.`
+
+## Clientes atuais
+
+- Raiz (`config.js`): Sapataria Pimentel
+- `clientes/cidral`: Sapataria Cidral (projeto `sapataria-cidral` na Vercel)
