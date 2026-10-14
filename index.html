@@ -1551,6 +1551,7 @@ function excluirVenda(id){
   const v = (S.vendas || []).find(x => x.id === id); if(!v) return;
   if(!confirm(`Excluir a venda de "${v.produto}" (${R(v.valor)})?`)) return;
   S.vendas = S.vendas.filter(x => x.id !== id);
+  ((S.removidos = S.removidos || {}).vendas = S.removidos.vendas || []).push(id);   // lápide: impede a venda de voltar na sincronização
   save(); fechar(); render();
 }
 function exportarVendas(){
@@ -1754,6 +1755,7 @@ function excluirDespesa(id){
   const x = (S.despesas || []).find(z => z.id === id); if(!x) return;
   if(!confirm(`Excluir a saída "${x.descricao || x.categoria}" (${R(x.valor)})?`)) return;
   S.despesas = S.despesas.filter(z => z.id !== id);
+  ((S.removidos = S.removidos || {}).despesas = S.removidos.despesas || []).push(id);   // lápide
   save(); fechar(); render();
 }
 function exportarFluxo(){
@@ -1864,6 +1866,46 @@ render();
   }
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+  /* ---------- mesclagem (vários aparelhos / unidades usando ao mesmo tempo) ----------
+     O estado todo fica numa única linha do banco. Antes, cada aparelho sobrescrevia a linha
+     inteira com a sua cópia, apagando o que o outro tinha lançado. Agora, antes de enviar,
+     baixamos a versão da nuvem e juntamos registro por registro (por id). */
+  function unir(a, b, rem){            // a = local (vence em empate), b = nuvem
+    const gone = new Set(rem || []), m = new Map();
+    (b || []).forEach(x => { if(!gone.has(x.id)) m.set(x.id, x); });
+    (a || []).forEach(x => { if(!gone.has(x.id)) m.set(x.id, x); });
+    return [...m.values()];
+  }
+  function mesclar(rem){               // rem = estado da nuvem; altera S (local) no lugar
+    if(!rem || typeof rem !== 'object') return;
+    const R0 = rem.removidos || {}, L0 = S.removidos = S.removidos || {};
+    ['vendas','despesas'].forEach(k => { L0[k] = [...new Set([...(L0[k] || []), ...(R0[k] || [])])]; });
+    S.os       = unir(S.os,       rem.os);
+    S.vendas   = unir(S.vendas,   rem.vendas,   L0.vendas);
+    S.despesas = unir(S.despesas, rem.despesas, L0.despesas);
+    S.contatos = S.contatos || {};
+    Object.keys(rem.contatos || {}).forEach(f => {
+      const ja = new Set((S.contatos[f] || []).map(x => x.data + '|' + x.tipo));
+      S.contatos[f] = (S.contatos[f] || []).concat(rem.contatos[f].filter(x => !ja.has(x.data + '|' + x.tipo)))
+                        .sort((x, y) => String(x.data).localeCompare(String(y.data)));
+    });
+    // numeração das OS: nunca volta atrás e nunca fica abaixo da maior OS existente da unidade
+    const un = (S.config && S.config.unidades) || [];
+    un.forEach(u => {
+      const ru = ((rem.config && rem.config.unidades) || []).find(x => x.id === u.id);
+      if(ru && +ru.proxNumero > +u.proxNumero) u.proxNumero = +ru.proxNumero;
+      const mx = S.os.filter(o => o.unidade === u.id).reduce((t, o) => Math.max(t, +o.numero || 0), 0);
+      if(mx >= +u.proxNumero) u.proxNumero = mx + 1;
+    });
+    if(typeof migrar === 'function') migrar();
+    localStorage.setItem(CHAVE_LOCAL, JSON.stringify(S));
+  }
+  async function buscarNuvem(){
+    const { data, error } = await comTimeout(sb.from(TABELA).select('dados').eq('id', LINHA).maybeSingle(), 15000);
+    if(error) throw error;
+    return data ? data.dados : null;
+  }
+
   /* ---------- envio para a nuvem ---------- */
   const Nuvem = {
     _t: null, _enviando: false,
@@ -1872,21 +1914,35 @@ render();
       if(this._enviando){ this.agendar(); return; }
       this._enviando = true;
       try{
+        mesclar(await buscarNuvem());                 // traz o que o outro aparelho lançou
         const { error } = await sb.from(TABELA).upsert({ id: LINHA, dados: S, atualizado_em: new Date().toISOString() });
         if(error) throw error;
         localStorage.removeItem('sap_pendente');
         selo('ok', 'Salvo na nuvem');
+        if(typeof render === 'function') render();
       }catch(e){
         console.error('Falha ao salvar na nuvem', e);
         selo('er', msgBanco(e) || 'Sem conexão — será reenviado');
         this._t = setTimeout(() => this.enviar(), 15000);
       }finally{ this._enviando = false; }
+    },
+    /* Puxa mudanças feitas em outro aparelho (sem perder o que está pendente aqui). */
+    async atualizar(){
+      if(this._enviando || localStorage.getItem('sap_pendente') || typeof S === 'undefined') return;
+      const md = document.getElementById('modal'); if(md && md.style.display && md.style.display !== 'none') return;   // não mexe com formulário aberto
+      try{
+        const antes = JSON.stringify(S);
+        mesclar(await buscarNuvem());
+        if(JSON.stringify(S) !== antes && typeof render === 'function') render();
+      }catch(e){ /* sem rede: tenta de novo no próximo ciclo */ }
     }
   };
   window.Nuvem = Nuvem;
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState === 'hidden' && localStorage.getItem('sap_pendente') && typeof S !== 'undefined') Nuvem.enviar();
+    else if(document.visibilityState === 'visible') Nuvem.atualizar();
   });
+  setInterval(() => Nuvem.atualizar(), 30000);
 
   function msgBanco(e){
     const t = ((e && (e.code || '')) + ' ' + (e && (e.message || ''))).toLowerCase();
@@ -1947,8 +2003,23 @@ render();
       if(data && !localStorage.getItem('sap_pendente')){
         localStorage.setItem(CHAVE_LOCAL, JSON.stringify(data.dados));          // nuvem manda
       }else if(local){
-        const r = await comTimeout(sb.from(TABELA).upsert({ id: LINHA, dados: JSON.parse(local), atualizado_em: new Date().toISOString() }), 15000);
-        if(r.error) throw r.error;                                               // 1ª migração ou alteração pendente
+        // alteração pendente neste aparelho: junta com a nuvem em vez de sobrescrevê-la
+        const base = data ? data.dados : null;
+        if(base){
+          const l = JSON.parse(local), r = base;
+          const un = (x, y, g) => { const gone = new Set(g || []), m = new Map();
+            (y || []).forEach(i => { if(!gone.has(i.id)) m.set(i.id, i); });
+            (x || []).forEach(i => { if(!gone.has(i.id)) m.set(i.id, i); }); return [...m.values()]; };
+          const rm = {}; ['vendas','despesas'].forEach(k => { rm[k] = [...new Set([...((l.removidos||{})[k]||[]), ...((r.removidos||{})[k]||[])])]; });
+          l.removidos = rm;
+          l.os = un(l.os, r.os); l.vendas = un(l.vendas, r.vendas, rm.vendas); l.despesas = un(l.despesas, r.despesas, rm.despesas);
+          l.contatos = Object.assign({}, r.contatos, l.contatos);
+          ((l.config||{}).unidades||[]).forEach(u => { const ru = (((r.config||{}).unidades)||[]).find(z => z.id === u.id);
+            if(ru && +ru.proxNumero > +u.proxNumero) u.proxNumero = +ru.proxNumero; });
+          localStorage.setItem(CHAVE_LOCAL, JSON.stringify(l));
+        }
+        const r2 = await comTimeout(sb.from(TABELA).upsert({ id: LINHA, dados: JSON.parse(localStorage.getItem(CHAVE_LOCAL)), atualizado_em: new Date().toISOString() }), 15000);
+        if(r2.error) throw r2.error;
         localStorage.removeItem('sap_pendente');
       }
       selo('ok', 'Conectado à nuvem');
