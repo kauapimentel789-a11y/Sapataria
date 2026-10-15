@@ -985,10 +985,7 @@ function renderPares(){
   </div>
   <label style="margin-top:8px">O que fazer${n>1 ? ` no par ${PAR_ATIVO+1} de ${n}` : ''} <span style="font-weight:400">(uma tarefa por linha — sai na etiqueta)</span></label>
   <textarea id="fz" placeholder="ex.: trocar meia-sola&#10;costurar o bico" oninput="PARES[PAR_ATIVO].fazer=this.value">${h(p.fazer)}</textarea>
-  <div class="row">
-    <div><label>Tempo previsto (h)</label><input id="fh" type="number" step="0.25" min="0.25" inputmode="decimal" value="${p.horas}" oninput="PARES[PAR_ATIVO].horas=+this.value||0"></div>
-    <div>${n>1 ? `<label>&nbsp;</label><button type="button" class="b er" style="width:100%;margin:3px 0 9px" onclick="parDel()">Remover este par</button>` : ''}</div>
-  </div>`;
+  ${n>1 ? `<button type="button" class="b er" style="width:100%;margin:3px 0 9px" onclick="parDel()">Remover este par</button>` : ''}`;
 }
 function parSel(i){ PAR_ATIVO = i; renderPares(); }
 function parAdd(){ PARES.push({ fazer:'', horas:+C().tempoPar || 1 }); PAR_ATIVO = PARES.length - 1; renderPares();
