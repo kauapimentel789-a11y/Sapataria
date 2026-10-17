@@ -204,6 +204,7 @@ input::placeholder,textarea::placeholder{color:var(--mut2)}
 input:hover,select:hover,textarea:hover{border-color:#c9c3bc}
 input:focus,select:focus,textarea:focus{outline:0;border-color:var(--c);box-shadow:0 0 0 3px rgba(200,16,46,.12)}
 input[type=checkbox],input[type=radio]{min-height:0;accent-color:var(--c)}
+input[readonly]{background:var(--bg2,#f4f1ee);font-weight:700;cursor:default}
 select{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:pointer;
   background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23706a64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E") no-repeat right 11px center}
 input[type=file]{padding:6px;cursor:pointer;font-size:13.5px;color:var(--mut)}
@@ -524,7 +525,7 @@ const horasOS = o => Math.max(.25, (o.pares||[]).reduce((t,p) => t + (+p.horas |
 const itemMsg = o => (o.legado && o.item) ? o.item : 'conserto';   // texto usado nas mensagens de WhatsApp
 const parTxt  = p => h(p.fazer||'').replace(/\n/g, ' + ');
 const parLista = o => { const ps = o.pares||[];
-  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)} <span style="color:var(--mut)">(${+p.horas||0}h)</span>`).join('<br>'); };
+  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''} <span style="color:var(--mut)">(${+p.horas||0}h)</span>`).join('<br>'); };
 const pago    = o => (o.pagamentos||[]).reduce((t,p) => t + (+p.valor||0), 0);
 const saldo   = o => Math.max(0, (+o.valor||0) - (+o.desconto||0) - pago(o));
 const ABERTOS = ['Recebido','Em fila','Em execução'];
@@ -985,23 +986,38 @@ function renderPares(){
   </div>
   <label style="margin-top:8px">O que fazer${n>1 ? ` no par ${PAR_ATIVO+1} de ${n}` : ''} <span style="font-weight:400">(uma tarefa por linha — sai na etiqueta)</span></label>
   <textarea id="fz" placeholder="ex.: trocar meia-sola&#10;costurar o bico" oninput="PARES[PAR_ATIVO].fazer=this.value">${h(p.fazer)}</textarea>
+  <label>Valor${n>1 ? ` do par ${PAR_ATIVO+1}` : ' do par'} (R$)</label>
+  <input id="fpv" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" value="${p.valor === '' || p.valor == null ? '' : p.valor}" oninput="PARES[PAR_ATIVO].valor=this.value;somaPares()">
+  <div class="hint" id="fps"></div>
   ${n>1 ? `<button type="button" class="b er" style="width:100%;margin:3px 0 9px" onclick="parDel()">Remover este par</button>` : ''}`;
 }
-function parSel(i){ PAR_ATIVO = i; renderPares(); }
-function parAdd(){ PARES.push({ fazer:'', horas:+C().tempoPar || 1 }); PAR_ATIVO = PARES.length - 1; renderPares();
+/* Soma os valores dos pares no Valor total da OS. Se nenhum par tem valor
+   (ex.: OS antiga), o total fica como estava e pode ser digitado à mão. */
+function somaPares(){
+  const tot = PARES.reduce((t,p) => t + (+p.valor > 0 ? +p.valor : 0), 0);
+  const fv = document.getElementById('fv'), fps = document.getElementById('fps');
+  if(fps) fps.innerHTML = tot > 0 && PARES.length > 1
+    ? PARES.map((p,i) => `Par ${i+1}: ${R(+p.valor||0)}`).join(' + ') + ` = <b>${R(tot)}</b>` : '';
+  if(!fv) return;
+  if(tot > 0){ fv.value = +tot.toFixed(2); fv.readOnly = true; fv.title = 'Soma automática dos valores dos pares'; }
+  else { fv.readOnly = false; fv.title = ''; }
+  if(document.getElementById('pgr')) pgSel();
+}
+function parSel(i){ PAR_ATIVO = i; renderPares(); somaPares(); }
+function parAdd(){ PARES.push({ fazer:'', horas:+C().tempoPar || 1, valor:'' }); PAR_ATIVO = PARES.length - 1; renderPares(); somaPares();
   const t = document.getElementById('fz'); if(t) t.focus(); }
 function parDel(){
   if(PARES.length < 2) return;
   if((PARES[PAR_ATIVO].fazer||'').trim() && !confirm(`Remover o par ${PAR_ATIVO+1}?`)) return;
-  PARES.splice(PAR_ATIVO, 1); PAR_ATIVO = Math.max(0, PAR_ATIVO - 1); renderPares();
+  PARES.splice(PAR_ATIVO, 1); PAR_ATIVO = Math.max(0, PAR_ATIVO - 1); renderPares(); somaPares();
 }
 function formOS(id){
   const o = id ? get(id) : {
     unidade:uDef(), numero:UN(uDef()).proxNumero, entrada:hoje(), prazo:addDia(hoje(),3),
     pares:[], prioridade:'normal', valor:'', desconto:0
   };
-  PARES = (o.pares||[]).map(p => ({ fazer:p.fazer||'', horas:+p.horas || +C().tempoPar || 1 }));
-  if(!PARES.length) PARES = [{ fazer:'', horas:+C().tempoPar || 1 }];
+  PARES = (o.pares||[]).map(p => ({ fazer:p.fazer||'', horas:+p.horas || +C().tempoPar || 1, valor:+p.valor > 0 ? +p.valor : '' }));
+  if(!PARES.length) PARES = [{ fazer:'', horas:+C().tempoPar || 1, valor:'' }];
   PAR_ATIVO = 0;
   modal(`
   <h3>${id ? 'Editar' : 'Nova'} Ordem de Serviço</h3>
@@ -1022,7 +1038,7 @@ function formOS(id){
   <label>Conserto — um par por aba</label>
   <div id="pares"></div>
   <div class="row3">
-    <div><label>Valor (R$)</label><input id="fv" type="number" step="0.01" inputmode="decimal" value="${o.valor}" oninput="if(document.getElementById('pgr'))pgSel()"></div>
+    <div><label>Valor total (R$)</label><input id="fv" type="number" step="0.01" inputmode="decimal" value="${o.valor}" oninput="if(document.getElementById('pgr'))pgSel()"></div>
     <div><label>Prioridade</label><select id="fpr"><option>normal</option><option ${o.prioridade==='urgente'?'selected':''}>urgente</option></select></div>
     <div><label>Responsável</label><input id="fr" value="${h(o.responsavel||'')}"></div>
   </div>
@@ -1043,13 +1059,14 @@ function formOS(id){
   <div class="hint" style="margin-bottom:8px">Vai o nº da OS, o que foi deixado, o prazo e o valor (pago, entrada ou a pagar).</div>`}
   <button class="b" onclick="salvarOS(${id||0})">Salvar OS</button>
   <button class="b sec" onclick="fechar()">Cancelar</button>`);
-  renderPares();
+  renderPares(); somaPares();
 }
 function salvarOS(id){
   const n   = +document.getElementById('fn').value;
   const tel = document.getElementById('ft').value.replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'').replace(/^0+/,'');
   const cli = document.getElementById('fc').value.trim();
-  const pares = PARES.map(p => ({ fazer:(p.fazer||'').trim(), horas:+p.horas || +C().tempoPar || 1 }));
+  const pares = PARES.map(p => { const x = { fazer:(p.fazer||'').trim(), horas:+p.horas || +C().tempoPar || 1 };
+    if(+p.valor > 0) x.valor = Math.round(+p.valor * 100) / 100; return x; });
   const vazio = pares.findIndex(p => !p.fazer);
   const it  = pares.map(p => p.fazer.replace(/\s*\n\s*/g, ' + ')).join(' | ');
   const fe  = document.getElementById('fe').value;
@@ -1131,7 +1148,7 @@ function imprimir(id){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><img src="${LOGO}" style="height:50px;background:#1e1c1b;border-radius:6px"><h2 style="margin:0">${h(C().loja)} · ${h(unid(o).curto)} — ${t}</h2></div>
       <h3>Ordem de Serviço nº ${o.numero}</h3>
       ${linha('Cliente', o.cliente)}${linha('Telefone', o.telefone)}
-      ${(o.pares||[]).map((p,i) => linha((o.pares.length>1 ? 'Par ' + (i+1) + ' – ' : '') + 'O que fazer', (p.fazer||'').replace(/\n/g, ' + '))).join('')}
+      ${(o.pares||[]).map((p,i) => linha((o.pares.length>1 ? 'Par ' + (i+1) + ' – ' : '') + 'O que fazer', (p.fazer||'').replace(/\n/g, ' + ') + (!prod && +p.valor > 0 ? ' — ' + R(p.valor) : ''))).join('')}
       ${linha('Entrada', fd(o.entrada))}${linha('Prazo prometido', fd(o.prazo))}
       ${linha('Prioridade', o.prioridade.toUpperCase())}
       ${prod
