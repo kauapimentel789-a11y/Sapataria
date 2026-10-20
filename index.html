@@ -833,6 +833,12 @@ function vInicio(){
 /* ============================ 9. LISTA DE OS ========================== */
 function filtroOS(){
   const q = F.q.trim().toLowerCase(), qd = F.q.replace(/\D/g,'');
+  // busca pelo nº da OS (ex.: 123, #123, OS 123): mostra só a OS com esse número
+  const qn = q.match(/^(?:os\s*)?(?:n[º°o.]?\s*)?#?\s*(\d+)$/);
+  if(qn){
+    const exata = osU().filter(o => Number(o.numero) === Number(qn[1]));
+    if(exata.length) return exata;
+  }
   return osU().filter(o => {
     const okQ = !q
       || o.cliente.toLowerCase().includes(q)
