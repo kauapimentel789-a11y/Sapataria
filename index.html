@@ -712,22 +712,23 @@ function confirmarRetirada(id){
 /* ============================ 6. NAVEGAÇÃO ============================ */
 let aba = 'inicio';
 let F = { q:'', st:'', f:'' };
-const ABAS = [['inicio','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>','Início'],['os','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>','OS'],['pron','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>','Prontos'],['orc','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11.5h1.5M11.25 11.5h1.5M14.5 11.5H16M8 15.5h1.5M11.25 15.5h1.5M14.5 15.5H16"/></svg>','Orçamento'],['prog','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>','Programação'],['cob','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-4a2 2 0 0 0 0 4h4v2a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6"/></svg>','Cobrança'],['vend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 14H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>','Vendas'],['cli','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>','Clientes'],['cfg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','Config']];
+const ABAS = [['inicio','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>','Início'],['os','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>','OS'],['pron','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>','Prontos'],['orc','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11.5h1.5M11.25 11.5h1.5M14.5 11.5H16M8 15.5h1.5M11.25 15.5h1.5M14.5 15.5H16"/></svg>','Orçamento'],['urg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>','Urgentes'],['cob','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-4a2 2 0 0 0 0 4h4v2a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6"/></svg>','Cobrança'],['vend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 14H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>','Vendas'],['cli','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>','Clientes'],['cfg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','Config']];
 const $nav = document.getElementById('nav');
 const $app = document.getElementById('app');
 const $mbox = document.getElementById('mbox');
 
 function ir(a){ aba = a; window.scrollTo({top:0,behavior:'smooth'}); render(); }
 const prontosU = () => osU().filter(o => o.status === 'Pronto');
+const urgentesU = () => osU().filter(o => aberta(o) && o.prioridade === 'urgente');
 function render(){
-  const nPr = prontosU().length;
+  const nb = { pron: prontosU().length, urg: urgentesU().length };
   $nav.innerHTML = ABAS.map(([k,i,t]) =>
-    `<button class="${aba===k?'on':''}" onclick="ir('${k}')"><span>${i}${k==='pron'&&nPr?`<em class="nbadge">${nPr}</em>`:''}</span>${t}</button>`).join('');
+    `<button class="${aba===k?'on':''}" onclick="ir('${k}')"><span>${i}${nb[k]?`<em class="nbadge">${nb[k]}</em>`:''}</span>${t}</button>`).join('');
   programar();                                    // recalcula previsões antes de desenhar
   document.getElementById('lojaTopo').textContent = C().loja;
   renderUnbar();
   document.getElementById('logoTopo').src = LOGO;
-  ({inicio:vInicio, os:vOS, pron:vProntos, orc:vOrc, prog:vProg, cob:vCob, vend:vVendas, cli:vCli, cfg:vCfg})[aba]();
+  ({inicio:vInicio, os:vOS, pron:vProntos, orc:vOrc, urg:vUrgentes, cob:vCob, vend:vVendas, cli:vCli, cfg:vCfg})[aba]();
 }
 
 /* ======================= 7. CARTÃO DA OS (lista) ====================== */
@@ -925,45 +926,18 @@ function vProntosLista(){
       (l.map(cartao).join('') || '<div class="card">Nenhum pronto encontrado com essa busca.</div>');
 }
 
-/* ========================== 10. PROGRAMAÇÃO =========================== */
-function blocoProg(u){
-  const { dias, fila } = programar(u.id);
-  const ks = Object.keys(dias).sort();
-  const prev = fila.filter(o => o._prev).slice(0,10);
-  const i = Math.max(0, S.config.unidades.findIndex(x => x.id === u.id));
-  return `
-  <div class="card unh u${i}">
-    <h3>${h(u.nome)}</h3>
-    <div class="hint">Capacidade: <b>${+u.capacidade||8} h/dia</b> (seg a sex) ·
-      ${u.usaSabado ? `sábado ${(+u.capacidadeSab||0)} h` : 'sábado sem produção (só atendimento)'} ·
-      fila: urgentes primeiro, depois por prazo.</div>
-    <div class="sep"></div>
-    <b style="font-size:13.5px;color:var(--c)">Ordem da fila (${fila.length})</b>
-    ${prev.map((o,n) => `<div class="fila" onclick="detalhe(${o.id})">
-        <span>${n+1}. ${o.prioridade==='urgente'?'🔴':'⚪'} #${o.numero} ${h(o.item)}</span>
-        <span class="hint">${horasOS(o).toFixed(1)} h · prazo ${fd(o.prazo)}</span></div>`).join('')
-      || '<div class="hint">Fila vazia 🎉</div>'}
-    ${fila.length > prev.length ? `<div class="hint">+ ${fila.length-prev.length} OS na sequência</div>` : ''}
+/* ===================== 10. URGENTES: só OS urgentes ===================== */
+function vUrgentes(){
+  // Em fila e marcadas como urgentes; prazo mais próximo primeiro
+  const l = urgentesU().sort((a,b) => a.prazo.localeCompare(b.prazo) || a.numero - b.numero);
+  const atr = l.filter(atrasada).length;
+  $app.innerHTML = `
+  <div class="grid">
+    <div class="card kpi"><b>${l.length}</b><small>Urgentes na fila</small></div>
+    <div class="card kpi"><b>${atr}</b><small>Urgentes atrasadas</small></div>
   </div>
-  ${ks.map(d => {
-    const usada = dias[d].reduce((s,x) => s + x.h, 0);
-    const c = capDoDia(d, u.id), p = c > 0 ? Math.min(100, usada / c * 100) : 0;
-    const cls = p > 95 ? 'f' : p > 75 ? 'w' : '';
-    return `<div class="card">
-      <b>${fd(d)}</b> ${d===hoje()?'<span class="tag ok">HOJE</span>':''} ${dow(d)===6?'<span class="tag">sábado · atendimento</span>':''}
-      <div class="bar"><i class="${cls}" style="width:${p}%"></i></div>
-      <div class="hint">${usada.toFixed(1)} h de ${c} h ocupadas (${p.toFixed(0)}%)</div>
-      ${dias[d].map(({o,h:hh}) => `<div class="fila" onclick="detalhe(${o.id})">
-          <span>${o.prioridade==='urgente'?'🔴':'⚪'} #${o.numero} ${h(o.item)}</span>
-          <span class="hint">${hh.toFixed(1)} h · prazo ${fd(o.prazo)}
-          ${o.prazo < d ? ' <span class="tag er">passa do prazo</span>' : ''}</span></div>`).join('')}
-    </div>`;
-  }).join('') || '<div class="card">Nada programado: a fila está vazia.</div>'}`;
-}
-function vProg(){
-  programar();
-  const us = U === 'todas' ? S.config.unidades : [UN(U)];
-  $app.innerHTML = us.map(blocoProg).join('');
+  ${l.length ? `<div class="hint" style="margin:0 2px 8px">${l.length} urgente(s) · prazo mais próximo primeiro</div>` + l.map(cartao).join('')
+             : '<div class="card">Nenhuma OS urgente na fila 🎉</div>'}`;
 }
 /* ============== 11. COBRANÇA E NEGOCIAÇÃO (situações práticas) ======= */
 const SITUACOES = [
