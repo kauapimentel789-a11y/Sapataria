@@ -154,8 +154,6 @@ nav button span{position:relative}
 .os.urg::before{background:var(--c)}
 .os.atr{background:linear-gradient(90deg,#fff6f6,#fff 40%)}
 .os.atr::before{background:var(--er)}
-.os.risco{background:linear-gradient(90deg,#fffaf0,#fff 40%)}
-.os.risco::before{background:#e0a030}
 .os>b:first-child{font-size:15px;letter-spacing:-.01em}
 
 /* etiquetas */
@@ -422,7 +420,7 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
 /* =========================================================================
    SAPATARIA – CONTROLE E PROGRAMAÇÃO DE PRODUÇÃO
    HTML/JS em arquivo único · dados no localStorage do navegador.
-   Módulos: OS, fluxo de status, programação por capacidade, cobrança e
+   Módulos: OS, fluxo de status, cobrança e
    negociação (WhatsApp), impressão, relatórios e backup.
    ========================================================================= */
 
@@ -545,11 +543,10 @@ function renderUnbar(){
 }
 
 /* ==================== 3. REGRAS DE NEGÓCIO / CÁLCULOS ================== */
-const horasOS = o => Math.max(.25, (o.pares||[]).reduce((t,p) => t + (+p.horas || +C().tempoPar || 1), 0) || 1);
 const itemMsg = o => (o.legado && o.item) ? o.item : 'conserto';   // texto usado nas mensagens de WhatsApp
 const parTxt  = p => h(p.fazer||'').replace(/\n/g, ' + ');
 const parLista = o => { const ps = o.pares||[];
-  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''} <span style="color:var(--mut)">(${+p.horas||0}h)</span>${p.entregue && ps.length>1 ? ` <span class="tag cb">✅ retirado ${new Date(p.entregue).toLocaleDateString('pt-BR')}</span>` : ''}`).join('<br>'); };
+  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''}${p.entregue && ps.length>1 ? ` <span class="tag cb">✅ retirado ${new Date(p.entregue).toLocaleDateString('pt-BR')}</span>` : ''}`).join('<br>'); };
 // retirada por par: p.entregue guarda a data/hora em que aquele par saiu da loja
 const paresRetirados = o => (o.pares||[]).filter(p => p.entregue).length;
 const pago    = o => (o.pagamentos||[]).reduce((t,p) => t + (+p.valor||0), 0);
@@ -572,48 +569,6 @@ const promessaVencida = o => o.promessa && o.promessa < hoje() && saldo(o) > 0;
 const devendo = o => ['Pronto','Entregue'].includes(o.status) && saldo(o) > 0;
 const proximo = o => { const i = FLUXO.indexOf(o.status); return (i >= 0 && i < FLUXO.length - 1) ? FLUXO[i+1] : null; };
 
-/* Capacidade de produção de um dia: sábado segue a configuração; domingo não produz. */
-function capDoDia(dia, uid){
-  const u = UN(uid), w = dow(dia);
-  if(w === 0) return 0;                                   // domingo: fechado
-  if(w === 6) return u.usaSabado ? (+u.capacidadeSab || 0) : 0;   // sábado: só se habilitado na unidade
-  return +u.capacidade || 8;
-}
-/* ------------------- PROGRAMAÇÃO DE PRODUÇÃO ---------------------------
-   Ordena a fila (urgentes primeiro, depois prazo, depois nº da OS) e
-   distribui as horas de cada OS nos dias úteis respeitando a capacidade.
-   Grava a previsão de execução (_prev) e o detalhamento por dia (dias). */
-function programar(uid){
-  // Cada unidade tem a sua própria fila e capacidade. Sem argumento: calcula todas.
-  const ids = uid ? [uid] : S.config.unidades.map(u => u.id);
-  let res = { fila:[], dias:{}, cap:0 };
-  ids.forEach(id => {
-    const fila = S.os.filter(o => aberta(o) && o.unidade === id).sort((a,b) =>
-        (a.prioridade === 'urgente' ? 0 : 1) - (b.prioridade === 'urgente' ? 0 : 1)
-     || a.prazo.localeCompare(b.prazo)
-     || a.numero - b.numero);
-    const dias = {};
-    let d = hoje(), uso = 0;
-    fila.forEach(o => {
-      const cap = capDoDia(d, id);
-      if(cap - uso <= 0.001){ d = addDia(d,1); uso = 0; }
-      let D = d, Uu = uso, rest = horasOS(o), g = 0;
-      o._prev = null;
-      while(rest > 0.001 && g++ < 400){
-        const c = capDoDia(D, id);
-        if(c <= 0.001 || c - Uu <= 0.001){ D = addDia(D,1); Uu = 0; continue; }
-        const t = Math.min(rest, c - Uu);
-        (dias[D] = dias[D] || []).push({ o, h:t });
-        if(o._prev === null) o._prev = D;
-        Uu += t; rest -= t;
-      }
-      d = D; uso = Uu;
-      if(g > 380) o._prev = o._prev || d;
-    });
-    res = { fila, dias, cap: capDoDia(hoje(), id) };
-  });
-  return res;
-}const risco = o => aberta(o) && !atrasada(o) && o._prev && o._prev > o.prazo;
 
 /* ==================== 4. CANAL DE ENVIO (WhatsApp / API) ===============
    Toda mensagem passa por aqui. Para migrar para envio automático por API
@@ -724,7 +679,6 @@ function render(){
   const nb = { pron: prontosU().length, urg: urgentesU().length };
   $nav.innerHTML = ABAS.map(([k,i,t]) =>
     `<button class="${aba===k?'on':''}" onclick="ir('${k}')"><span>${i}${nb[k]?`<em class="nbadge">${nb[k]}</em>`:''}</span>${t}</button>`).join('');
-  programar();                                    // recalcula previsões antes de desenhar
   document.getElementById('lojaTopo').textContent = C().loja;
   renderUnbar();
   document.getElementById('logoTopo').src = LOGO;
@@ -736,7 +690,6 @@ function tagsOS(o){
   const t = [unTag(o.unidade)];
   if(o.prioridade === 'urgente') t.push('<span class="tag er">URGENTE</span>');
   if(atrasada(o)) t.push('<span class="tag er">ATRASADA</span>');
-  else if(risco(o)) t.push('<span class="tag am">EM RISCO</span>');
   if(o.status !== 'Cancelado' && (+o.valor||0) > 0){
     if(saldo(o) <= 0.009) t.push('<span class="tag ok">PAGO</span>');
     else if(pago(o) > 0) t.push(`<span class="tag ok">ENTRADA ${R(pago(o))}</span>`);
@@ -752,11 +705,11 @@ function tagsOS(o){
 function cartao(o){
   const p = proximo(o);
   const av = avisado(o);
-  return `<div class="card os ${o.prioridade==='urgente'?'urg':''} ${atrasada(o)?'atr':risco(o)?'risco':''} fade">
+  return `<div class="card os ${o.prioridade==='urgente'?'urg':''} ${atrasada(o)?'atr':''} fade">
     <b>#${o.numero} · ${h(o.item)}</b> ${stTag(o)}<br>${tagsOS(o)}
     <div class="hint" style="margin-top:6px">
       ${h(o.cliente)} · ${h(o.telefone)}<br>
-      Prazo ${fd(o.prazo)}${aberta(o)&&o._prev?` · previsão <b>${fd(o._prev)}</b>`:''}
+      Prazo ${fd(o.prazo)}
       ${o.responsavel?' · '+h(o.responsavel):''}
     </div>
     ${o.status==='Pronto'&&saldo(o)>0?`<button class="b ok" onclick="pagouSaldo(${o.id})">💰 Pagou saldo</button>`:''}
@@ -789,13 +742,12 @@ function vInicio(){
   const prod = {};
   t.filter(o => ['Pronto','Entregue'].includes(o.status)).forEach(o => {
     const r = o.responsavel || '(sem responsável)';
-    prod[r] = prod[r] || { n:0, h:0, v:0 };
-    prod[r].n++; prod[r].h += horasOS(o); prod[r].v += (+o.valor||0);
+    prod[r] = prod[r] || { n:0, v:0 };
+    prod[r].n++; prod[r].v += (+o.valor||0);
   });
 
   const alertas = [
     ...t.filter(atrasada).map(o => `⏰ OS #${o.numero} atrasada (prazo ${fd(o.prazo)}) — ${h(o.cliente)}`),
-    ...t.filter(risco).map(o => `⚠️ OS #${o.numero} em risco: previsão ${fd(o._prev)}, prazo ${fd(o.prazo)}`),
     ...t.filter(parado).map(o => `📦 OS #${o.numero} pronta há ${diasParadoQtd(o)} dias sem retirada`),
     ...t.filter(promessaVencida).map(o => `💸 OS #${o.numero}: promessa de pagamento era ${fd(o.promessa)}`)
   ];
@@ -833,7 +785,7 @@ function vInicio(){
   <div class="card"><h3>Produção por responsável</h3>
     ${Object.entries(prod).sort((a,b)=>b[1].n-a[1].n).map(([r,v]) =>
       `<div class="fila" style="cursor:default"><span>${h(r)}</span>
-       <span><b>${v.n}</b> OS · ${v.h.toFixed(1)} h · ${R(v.v)}</span></div>`).join('') || '<div class="hint">Sem dados ainda.</div>'}
+       <span><b>${v.n}</b> OS · ${R(v.v)}</span></div>`).join('') || '<div class="hint">Sem dados ainda.</div>'}
   </div>`;
   fxRender();
 }
@@ -983,7 +935,6 @@ function fechar(){ document.getElementById('modal').style.display = 'none'; }
 
 function detalhe(id){
   const o = get(id); if(!o) return;
-  programar();
   const av = avisado(o);
 
   const hist = (o.historico||[]).slice().reverse().map(x =>
@@ -1002,8 +953,8 @@ function detalhe(id){
   <h4>Dados</h4>
   <div class="hint">
     ${h(o.cliente)} · ${h(o.telefone)}<br>
-    Entrada ${fd(o.entrada)} · Prazo ${fd(o.prazo)}${aberta(o)&&o._prev?` · Previsão ${fd(o._prev)}`:''}<br>
-    <b>O que fazer:</b><br>${parLista(o)}<br>Total previsto: ${horasOS(o).toFixed(1)} h<br>
+    Entrada ${fd(o.entrada)} · Prazo ${fd(o.prazo)}<br>
+    <b>O que fazer:</b><br>${parLista(o)}<br>
     Responsável: ${h(o.responsavel || '—')}<br>
     ${o.obs ? '<b>Obs.:</b> ' + h(o.obs) : ''}
   </div>
@@ -1348,7 +1299,7 @@ function imprimir(id){
       ${linha('Entrada', fd(o.entrada))}${linha('Prazo prometido', fd(o.prazo))}
       ${linha('Prioridade', o.prioridade.toUpperCase())}
       ${prod
-        ? linha('Responsável', o.responsavel) + linha('Tempo previsto', horasOS(o).toFixed(1) + ' h') + linha('Status', o.status)
+        ? linha('Responsável', o.responsavel) + linha('Status', o.status)
         : linha('Valor', R(o.valor)) + linha('Desconto', R(o.desconto||0)) + linha('Pago', R(pago(o))) + linha('Saldo', R(saldo(o))) + linha('Situação do pagamento', saldo(o) <= 0.009 ? 'PAGO' : (pago(o) > 0 ? 'ENTRADA PAGA' : 'PAGAR NA RETIRADA'))}
       ${linha('Observações', o.obs)}
       ${prod ? '' : `<p><b>Retirada:</b> ${h(unid(o).horario)}</p>
@@ -1557,22 +1508,8 @@ function vCfg(){
       <div><label>Próxima OS desta unidade</label><input id="un_prox_${i}" type="number" min="1" value="${u.proxNumero}"></div>
     </div>
     <label>Horário de atendimento (vai nas mensagens e na impressão)</label><input id="un_hor_${i}" value="${h(u.horario)}">
-    <div class="row">
-      <div><label>Produção seg–sex (h/dia)</label><input id="un_cap_${i}" type="number" step="0.5" value="${u.capacidade}"></div>
-      <div><label>Produção sábado (h/dia)</label><input id="un_sab_${i}" type="number" step="0.5" value="${u.capacidadeSab||0}"></div>
-    </div>
-    <label style="display:flex;align-items:center;gap:8px">
-      <input type="checkbox" id="un_usa_${i}" ${u.usaSabado?'checked':''} style="width:auto;margin:0">
-      Usar sábado na programação desta unidade
-    </label>
-    <div class="hint" style="margin-top:6px">A numeração é independente: defina aqui a primeira OS da unidade e o sistema segue a sequência a partir dela. Sábado é só atendimento por padrão; domingo é sempre pulado.</div>
+    <div class="hint" style="margin-top:6px">A numeração é independente: defina aqui a primeira OS da unidade e o sistema segue a sequência a partir dela.</div>
   </div>`).join('')}
-
-  <div class="card"><h3>Tempo padrão por par (horas)</h3>
-    <label>Tempo sugerido para cada par novo na OS</label>
-    <input id="tpar" type="number" step="0.25" min="0.25" value="${c.tempoPar||1}">
-    <div class="hint">Cada par pode ter um tempo diferente dentro da OS; este é só o valor inicial.</div>
-  </div>
 
   <div class="card"><h3>Mensagens de WhatsApp</h3>
     <div class="hint" style="margin-bottom:8px">Variáveis: {nome} {item} {servicos} {prazo} {numero} {horario} {loja} {unidade} {valor} {saldo} {pago} {prazoPag} {prontoEm} {situacaoPag}. O horário e a unidade são os da OS. No envio de orçamento também vale {validade}.</div>
@@ -1600,16 +1537,12 @@ function salvarCfg(){
     u.nome = g('nome').value.trim() || u.nome;
     u.curto = g('curto').value.trim() || u.curto;
     u.horario = g('hor').value.trim();
-    u.capacidade = +g('cap').value || 8;
-    u.capacidadeSab = +g('sab').value || 0;
-    u.usaSabado = g('usa').checked;
     const n = Math.max(1, +g('prox').value || 1);
     const mx = Math.max(0, ...S.os.filter(o => o.unidade === u.id).map(o => o.numero));
     u.proxNumero = n;
     if(mx >= n && !confirm(`${u.curto}: já existem OS até o nº ${mx}. Manter o próximo em ${n} pode repetir a numeração. Continuar?`))
       u.proxNumero = mx + 1;
   });
-  c.tempoPar = Math.max(.25, +document.getElementById('tpar').value || 1);
   document.querySelectorAll('.mg').forEach(i => c.msgs[i.dataset.k] = i.value);
   save(); render(); alert('Configurações salvas ✅');
 }function backup(){
@@ -2264,7 +2197,7 @@ render();
      OS / venda / despesa / contato é comparado com essa foto: o que mudou aqui
      vem daqui, o que mudou lá vem de lá. Assim um aparelho não apaga a
      alteração do outro (ex.: OS marcada como Entregue em outro celular). */
-  const semInternos = (k, v) => (k && k[0] === '_') ? undefined : v;     // _prev, _mod etc. não contam
+  const semInternos = (k, v) => (k && k[0] === '_') ? undefined : v;     // _mod etc. não contam
   function hash(str){                                                       // cyrb53
     let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
     for(let i = 0, ch; i < str.length; i++){ ch = str.charCodeAt(i);
