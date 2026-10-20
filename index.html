@@ -499,6 +499,9 @@ function migrar(){
       capacidade:c.capacidade, capacidadeSab:0, usaSabado:false, proxNumero:c.proxNumero || 1 }];
   }
   S.os.forEach(o => { if(!o.unidade || !c.unidades.some(u => u.id === o.unidade)) o.unidade = c.unidades[0].id; });
+  // só existem Em fila, Pronto e Entregue: status antigos viram "Em fila"
+  const antigos = { 'Recebido':'Em fila', 'Em execução':'Em fila', 'Em andamento':'Em fila' };
+  S.os.forEach(o => { if(antigos[o.status]) o.status = antigos[o.status]; });
   // OS antigas (com checkboxes de serviço) viram uma OS com 1 par
   S.os.forEach(o => {
     if(Array.isArray(o.pares) && o.pares.length) return;
@@ -542,11 +545,18 @@ const horasOS = o => Math.max(.25, (o.pares||[]).reduce((t,p) => t + (+p.horas |
 const itemMsg = o => (o.legado && o.item) ? o.item : 'conserto';   // texto usado nas mensagens de WhatsApp
 const parTxt  = p => h(p.fazer||'').replace(/\n/g, ' + ');
 const parLista = o => { const ps = o.pares||[];
-  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''} <span style="color:var(--mut)">(${+p.horas||0}h)</span>`).join('<br>'); };
+  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''} <span style="color:var(--mut)">(${+p.horas||0}h)</span>${p.entregue && ps.length>1 ? ` <span class="tag cb">✅ retirado ${new Date(p.entregue).toLocaleDateString('pt-BR')}</span>` : ''}`).join('<br>'); };
+// retirada por par: p.entregue guarda a data/hora em que aquele par saiu da loja
+const paresRetirados = o => (o.pares||[]).filter(p => p.entregue).length;
 const pago    = o => (o.pagamentos||[]).reduce((t,p) => t + (+p.valor||0), 0);
 const saldo   = o => Math.max(0, (+o.valor||0) - (+o.desconto||0) - pago(o));
-const ABERTOS = ['Recebido','Em fila','Em execução'];
-const FLUXO   = ['Recebido','Em fila','Em execução','Pronto','Entregue'];
+const ABERTOS = ['Em fila'];
+const FLUXO   = ['Em fila','Pronto','Entregue'];
+const ST_COR  = { 'Em fila':'am', 'Pronto':'ok', 'Entregue':'cb', 'Cancelado':'er' };
+const stTag   = o => `<span class="tag ${ST_COR[o.status]||''}">${h(o.status)}</span>`;
+// opções do seletor de status; "Cancelado" só aparece para a OS que já está cancelada
+const stOpcoes = atual => [...FLUXO, ...(atual === 'Cancelado' ? ['Cancelado'] : [])]
+  .map(s => `<option ${s===atual?'selected':''}>${s}</option>`).join('');
 const aberta  = o => ABERTOS.includes(o.status);
 const atrasada= o => aberta(o) && o.prazo < hoje();
 const prontoEm= o => { const e = [...(o.historico||[])].reverse().find(x => x.para === 'Pronto'); return e ? e.data : null; };
@@ -649,11 +659,50 @@ function avisar(id, tipo){
 /* ============================ 5. STATUS =============================== */
 function mudar(id, novo){
   const o = get(id); if(!o) return;
+  if(novo === 'Entregue' && (o.pares||[]).length > 1) return retirada(id);
   if(novo === 'Entregue' && saldo(o) > 0 && !confirm(`Ainda há saldo de ${R(saldo(o))}. Entregar mesmo assim?`)) return;
   if(novo === 'Cancelado' && !confirm('Cancelar esta OS? O histórico será mantido.')) return;
   o.historico.push({ data:agora(), de:o.status, para:novo, nota:'' });
+  if(novo === 'Entregue') (o.pares||[]).forEach(p => { if(!p.entregue) p.entregue = agora(); });
   o.status = novo; save(); render();
   if(novo === 'Pronto') detalhe(id);        // ao ficar pronto: já abre com o botão de aviso
+}
+
+/* Retirada de OS com vários pares: por padrão sai tudo; desmarcando, o cliente
+   leva só alguns pares e a OS continua Pronto até o último par ser retirado. */
+function retirada(id){
+  const o = get(id); if(!o) return;
+  const ps = o.pares || [];
+  modal(`
+  <h3>Retirada – OS #${o.numero}</h3>
+  <div class="hint">Desmarque os pares que vão ficar na loja.</div>
+  ${ps.map((p,i) => p.entregue
+    ? `<div class="hint" style="padding:6px 0">✅ <b>Par ${i+1}</b> – ${parTxt(p)} · já retirado em ${new Date(p.entregue).toLocaleDateString('pt-BR')}</div>`
+    : `<label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:600;cursor:pointer">
+        <input type="checkbox" class="ret-par" value="${i}" checked style="width:auto;margin:0"> Par ${i+1} – ${parTxt(p)}</label>`).join('')}
+  ${saldo(o) > 0 ? `<div class="hint" style="margin-top:6px">Saldo em aberto: <b>${R(saldo(o))}</b></div>` : ''}
+  <div class="sep"></div>
+  <button class="b ok" onclick="confirmarRetirada(${o.id})">Confirmar retirada</button>
+  <button class="b sec" onclick="fechar()">Voltar</button>`);
+}
+function confirmarRetirada(id){
+  const o = get(id); if(!o) return;
+  const ps = o.pares || [];
+  const marc = [...document.querySelectorAll('.ret-par:checked')].map(x => +x.value);
+  if(!marc.length) return alert('Marque pelo menos um par.');
+  const tudo = ps.every((p,i) => p.entregue || marc.includes(i));
+  if(tudo && saldo(o) > 0 && !confirm(`Ainda há saldo de ${R(saldo(o))}. Entregar mesmo assim?`)) return;
+  const quando = agora();
+  marc.forEach(i => { ps[i].entregue = quando; });
+  const quais = marc.map(i => 'par ' + (i+1)).join(', ');
+  if(tudo){
+    o.historico.push({ data:quando, de:o.status, para:'Entregue', nota: marc.length < ps.length ? `Retirada do ${quais}` : '' });
+    o.status = 'Entregue';
+  } else {
+    o.historico.push({ data:quando, de:o.status, para:o.status,
+      nota:`Retirada parcial: ${quais} (${paresRetirados(o)} de ${ps.length} pares retirados)` });
+  }
+  save(); fechar(); render();
 }
 
 /* ============================ 6. NAVEGAÇÃO ============================ */
@@ -685,6 +734,7 @@ function tagsOS(o){
     if(saldo(o) <= 0.009) t.push('<span class="tag ok">PAGO</span>');
     else if(pago(o) > 0) t.push(`<span class="tag ok">ENTRADA ${R(pago(o))}</span>`);
   }
+  if(o.status !== 'Entregue' && paresRetirados(o)) t.push(`<span class="tag cb">${paresRetirados(o)}/${o.pares.length} RETIRADOS</span>`);
   if(semAviso(o)) t.push('<span class="tag am">SEM AVISO</span>');
   if(parado(o)) t.push(`<span class="tag er">PARADO ${diasParadoQtd(o)}d</span>`);
   if(o.status !== 'Cancelado' && saldo(o) > 0)
@@ -696,7 +746,7 @@ function cartao(o){
   const p = proximo(o);
   const av = avisado(o);
   return `<div class="card os ${o.prioridade==='urgente'?'urg':''} ${atrasada(o)?'atr':risco(o)?'risco':''} fade">
-    <b>#${o.numero} · ${h(o.item)}</b> <span class="tag">${h(o.status)}</span><br>${tagsOS(o)}
+    <b>#${o.numero} · ${h(o.item)}</b> ${stTag(o)}<br>${tagsOS(o)}
     <div class="hint" style="margin-top:6px">
       ${h(o.cliente)} · ${h(o.telefone)}<br>
       Prazo ${fd(o.prazo)}${aberta(o)&&o._prev?` · previsão <b>${fd(o._prev)}</b>`:''}
@@ -803,7 +853,7 @@ function vOS(){
     <div class="row">
       <select onchange="F.st=this.value;vOSLista()">
         <option value="">Todos os status</option>
-        ${[...FLUXO,'Cancelado'].map(s => `<option ${F.st===s?'selected':''}>${s}</option>`).join('')}
+        ${FLUXO.map(s => `<option ${F.st===s?'selected':''}>${s}</option>`).join('')}
       </select>
       <select onchange="F.f=this.value;vOSLista()">
         <option value="">Sem filtro especial</option>
@@ -893,7 +943,7 @@ function vCob(){
   </div>` : ''}
   <div class="card"><h3>Quem está devendo</h3>
     ${l.map(o => `<div class="card os ${promessaVencida(o)?'atr':''}" style="margin:8px 0 0">
-      <b>#${o.numero} · ${h(o.item)}</b> <span class="tag ${o.status==='Entregue'?'cb':''}">${o.status}</span><br>
+      <b>#${o.numero} · ${h(o.item)}</b> ${stTag(o)}<br>
       <div class="hint">${h(o.cliente)} · ${h(o.telefone)}${o.promessa?` · promessa ${fd(o.promessa)}`:''}<br>
         Saldo <b>${R(saldo(o))}</b> de ${R(o.valor)} ${o.desconto?`(desconto ${R(o.desconto)})`:''}</div>
       <button class="b wa" onclick="avisar(${o.id},'${(!o.promessa && o.status==='Pronto')?'lembrete':'orcamento'}')">📲 Cobrar no WhatsApp</button>
@@ -921,7 +971,7 @@ function detalhe(id){
 
   modal(`
   <h3>OS #${o.numero} – ${h(o.item)}</h3>
-  <span class="tag">${h(o.status)}</span> ${tagsOS(o)}
+  ${stTag(o)} ${tagsOS(o)}
   ${o.orcId && getOrc(o.orcId) ? `<div class="hint" style="margin-top:6px">Veio do orçamento ${getOrc(o.orcId).numero}.</div>` : ''}
 
   <h4>Dados</h4>
@@ -1041,7 +1091,7 @@ function formOS(id, orcId){
     pares:orc ? orc.pares : [], prioridade:'normal', valor:orc ? orc.valor || '' : '', desconto:0,
     cliente:orc ? orc.cliente : '', telefone:orc ? orc.telefone : '', obs:orc ? orc.obs : ''
   };
-  PARES = (o.pares||[]).map(p => ({ fazer:p.fazer||'', horas:+p.horas || +C().tempoPar || 1, valor:+p.valor > 0 ? +p.valor : '' }));
+  PARES = (o.pares||[]).map(p => ({ fazer:p.fazer||'', horas:+p.horas || +C().tempoPar || 1, valor:+p.valor > 0 ? +p.valor : '', entregue:p.entregue || '' }));
   if(!PARES.length) PARES = [{ fazer:'', horas:+C().tempoPar || 1, valor:'' }];
   PAR_ATIVO = 0;
   PAGS = id ? (o.pagamentos||[]).map(p => ({ data:p.data, dia:diaDe(p.data) || hoje(), valor:+p.valor || '', forma:p.forma || 'Pix' })) : [];
@@ -1073,7 +1123,7 @@ function formOS(id, orcId){
   ${id ? `
   <h4>Situação e desconto</h4>
   <div class="row">
-    <div><label>Status</label><select id="fst">${[...FLUXO,'Cancelado'].map(s => `<option ${s===o.status?'selected':''}>${s}</option>`).join('')}</select></div>
+    <div><label>Status</label><select id="fst">${stOpcoes(o.status)}</select></div>
     <div><label>Desconto (R$)</label><input id="fds" type="number" min="0" step="0.01" inputmode="decimal" value="${+o.desconto||0}" oninput="atuPag()"></div>
   </div>
   <h4>Pagamentos (o que já entrou)</h4>
@@ -1141,7 +1191,8 @@ function salvarOS(id){
   const tel = document.getElementById('ft').value.replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'').replace(/^0+/,'');
   const cli = document.getElementById('fc').value.trim();
   const pares = PARES.map(p => { const x = { fazer:(p.fazer||'').trim(), horas:+p.horas || +C().tempoPar || 1 };
-    if(+p.valor > 0) x.valor = Math.round(+p.valor * 100) / 100; return x; });
+    if(+p.valor > 0) x.valor = Math.round(+p.valor * 100) / 100;
+    if(p.entregue) x.entregue = p.entregue; return x; });
   const vazio = pares.findIndex(p => !p.fazer);
   const it  = pares.map(p => p.fazer.replace(/\s*\n\s*/g, ' + ')).join(' | ');
   const fe  = document.getElementById('fe').value;
@@ -1190,12 +1241,13 @@ function salvarOS(id){
     Object.assign(o, dados, { desconto:desc, pagamentos:pags });
     o.historico.push({ data:agora(), de:o.status, para:o.status, nota:'OS editada' + (mud.length ? ': ' + mud.join('; ') : '') });
     if(st !== o.status){ o.historico.push({ data:agora(), de:o.status, para:st, nota:'Status alterado na edição' }); o.status = st; }
+    if(o.status === 'Entregue') o.pares.forEach(p => { if(!p.entregue) p.entregue = agora(); });
     if(saldo(o) <= 0.009) o.promessa = '';
   } else {
     // Pagamento informado na abertura da OS: nada, uma parte (sinal) ou tudo
     const tp = (document.querySelector('input[name=pgt]:checked') || {}).value || 'nenhum';
     const forma = document.getElementById('fef').value;
-    const pags = [], hist = [{ data:agora(), de:'', para:'Recebido', nota:'OS criada' }];
+    const pags = [], hist = [{ data:agora(), de:'', para:'Em fila', nota:'OS criada' }];
     const orc = ORC_DE ? getOrc(ORC_DE) : null;
     if(orc) hist[0].nota = `OS criada a partir do orçamento ${orc.numero}`;
     if(tp === 'entrada'){
@@ -1203,15 +1255,15 @@ function salvarOS(id){
       if(!(v > 0)) return alert('Informe quanto o cliente pagou agora.');
       if(dados.valor > 0 && v > dados.valor) return alert('O valor pago não pode ser maior que o valor total. Se pagou tudo, escolha "Pagou tudo".');
       pags.push({ data:agora(), valor:v, forma });
-      hist.push({ data:agora(), de:'Recebido', para:'Recebido', nota:`Entrada (sinal) de ${R(v)} (${forma})` });
+      hist.push({ data:agora(), de:'Em fila', para:'Em fila', nota:`Entrada (sinal) de ${R(v)} (${forma})` });
     }
     if(tp === 'total'){
       if(!(dados.valor > 0)) return alert('Informe o valor da OS para registrar o pagamento total.');
       pags.push({ data:agora(), valor:dados.valor, forma });
-      hist.push({ data:agora(), de:'Recebido', para:'Recebido', nota:`Pagamento total de ${R(dados.valor)} (${forma})` });
+      hist.push({ data:agora(), de:'Em fila', para:'Em fila', nota:`Pagamento total de ${R(dados.valor)} (${forma})` });
     }
     localStorage.setItem('sap_etq', querEtq ? '1' : '0'); localStorage.setItem('sap_wa', querWa ? '1' : '0');
-    S.os.push(Object.assign({ id:idNovo, status:'Recebido', criada:agora(),
+    S.os.push(Object.assign({ id:idNovo, status:'Em fila', criada:agora(),
       desconto:0, pagamentos:pags, avisos:[], historico:hist }, orc ? { orcId:orc.id } : {}, dados));
     if(n >= UN(un).proxNumero) UN(un).proxNumero = n + 1;   // a sequência da unidade continua a partir daqui
     localStorage.setItem('sap_uf', un);
