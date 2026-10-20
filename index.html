@@ -752,6 +752,7 @@ function cartao(o){
       Prazo ${fd(o.prazo)}${aberta(o)&&o._prev?` · previsão <b>${fd(o._prev)}</b>`:''}
       ${o.responsavel?' · '+h(o.responsavel):''}
     </div>
+    ${o.status==='Pronto'&&saldo(o)>0?`<button class="b ok" onclick="pagouSaldo(${o.id})">💰 Pagou saldo</button>`:''}
     ${p?`<button class="b" onclick="mudar(${o.id},'${p}')">→ ${p}</button>`:''}
     ${o.status==='Pronto'?`<button class="b wa" onclick="avisar(${o.id},'${av?'lembrete':'pronto'}')">📲 ${av?'Reenviar lembrete':'Avisar no WhatsApp'}</button>`:''}
     <button class="b sec" onclick="detalhe(${o.id})">Detalhes</button>
@@ -1040,6 +1041,26 @@ function receber(id){
   o.historico.push({ data:agora(), de:o.status, para:o.status, nota:`Pagamento de ${R(v)} (${document.getElementById('pf').value})` });
   if(saldo(o) <= 0.009) o.promessa = '';
   save(); render(); detalhe(id);
+}
+/* Atalho do card: quita o saldo restante sem abrir Detalhes (mesmo registro de receber()) */
+function pagouSaldo(id){
+  const o = get(id); if(!o || !(saldo(o) > 0)) return;
+  modal(`<h3>Pagou saldo · OS #${o.numero}</h3>
+  <div class="hint">${h(o.cliente)} · saldo de <b>${R(saldo(o))}</b></div>
+  <label>Forma de pagamento</label><select id="psf">${optForma('Pix')}</select>
+  <button class="b ok" onclick="confirmarSaldo(${o.id})">Registrar ${R(saldo(o))}</button>
+  <button class="b sec" onclick="fechar()">Voltar</button>`);
+}
+function confirmarSaldo(id){
+  const o = get(id); if(!o) return fechar();
+  const v = Math.round(saldo(o) * 100) / 100, forma = document.getElementById('psf').value;
+  if(v > 0){
+    (o.pagamentos = o.pagamentos || []).push({ data:agora(), valor:v, forma });
+    o.historico.push({ data:agora(), de:o.status, para:o.status, nota:`Pagamento de ${R(v)} (${forma})` });
+    o.promessa = '';
+    save();
+  }
+  fechar(); render();
 }
 function negociar(id){
   const o = get(id);
