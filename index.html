@@ -941,7 +941,7 @@ function blocoProg(u){
     <b style="font-size:13.5px;color:var(--c)">Ordem da fila (${fila.length})</b>
     ${prev.map((o,n) => `<div class="fila" onclick="detalhe(${o.id})">
         <span>${n+1}. ${o.prioridade==='urgente'?'🔴':'⚪'} #${o.numero} ${h(o.item)}</span>
-        <span class="hint">${horasOS(o).toFixed(1)} h · ${fd(o._prev)}</span></div>`).join('')
+        <span class="hint">${horasOS(o).toFixed(1)} h · prazo ${fd(o.prazo)}</span></div>`).join('')
       || '<div class="hint">Fila vazia 🎉</div>'}
     ${fila.length > prev.length ? `<div class="hint">+ ${fila.length-prev.length} OS na sequência</div>` : ''}
   </div>
