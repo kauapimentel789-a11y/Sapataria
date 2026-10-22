@@ -1494,8 +1494,7 @@ const NB_W = 384, NB_H = 240;          // cabeça da B1 = 48 mm; etiqueta 5×3 c
 /* Na B1 a imagem sai ~4 mm deslocada para a direita na etiqueta (medido na impressão real).
    Por isso o conteúdo fica entre NB_L e NB_R do canvas, o que deixa ele centralizado no papel. */
 const NB_L = 4, NB_R = 332;
-/* O texto fica num quadrado de 3×3 cm (240×240 pontos) no centro dessa área, girado 90° (na vertical). */
-const NB_TL = Math.round((NB_L + NB_R) / 2) - 120, NB_TR = NB_TL + 240;
+/* O texto sai na vertical: desenhado em pé (30 mm de largura × área útil de altura) e girado 90°. */
 const NB = { cli:null, fila:null, ocupado:false };
 
 function carregarNiimbot(){
@@ -1512,10 +1511,10 @@ function carregarNiimbot(){
 /* Mesma etiqueta do 5×3 cm (OS, par, tarefas, prazo), desenhada em pixels. */
 function canvasEtiqueta(o, i){
   const ps = o.pares || [], p = ps[i] || { fazer:'' };
-  const Q = NB_TR - NB_TL;                          // quadrado de 3×3 cm, desenhado à parte e depois girado
-  const q = document.createElement('canvas'); q.width = Q; q.height = Q;
+  const Q = NB_H, A = NB_R - NB_L;                 // etiqueta em pé: 30 mm de largura × área útil de altura
+  const q = document.createElement('canvas'); q.width = Q; q.height = A;
   const g = q.getContext('2d'), F = 'Arial, Helvetica, sans-serif', L = 8, R = Q - 8;   // 1 mm de folga: girado, a largura vira a altura da etiqueta
-  g.fillStyle = '#fff'; g.fillRect(0, 0, Q, Q); g.fillStyle = '#000'; g.strokeStyle = '#000';
+  g.fillStyle = '#fff'; g.fillRect(0, 0, Q, A); g.fillStyle = '#000'; g.strokeStyle = '#000';
   // topo: nº da OS e "1/3"
   g.font = `700 14px ${F}`; g.fillText('OS', L, 38);
   g.font = `900 36px ${F}`; g.fillText(String(o.numero), L + 24, 38);
@@ -1526,11 +1525,11 @@ function canvasEtiqueta(o, i){
   }
   g.fillRect(L, 44, R - L, 3);
   // rodapé: prazo
-  g.fillRect(L, Q - 34, R - L, 3);
-  g.font = `900 22px ${F}`; g.fillText('Prazo: ' + (o.prazo ? fd(o.prazo).slice(0,5) : '—'), L, Q - 8);
-  g.textAlign = 'right'; g.fillText(siglaEtq(o), R, Q - 8); g.textAlign = 'left';
+  g.fillRect(L, A - 34, R - L, 3);
+  g.font = `900 22px ${F}`; g.fillText('Prazo: ' + (o.prazo ? fd(o.prazo).slice(0,5) : '—'), L, A - 8);
+  g.textAlign = 'right'; g.fillText(siglaEtq(o), R, A - 8); g.textAlign = 'left';
   // meio: tarefas em maiúsculas, a letra diminui até caber
-  const topo = 51, alt = Q - 38 - topo, larg = R - L;
+  const topo = 51, alt = A - 38 - topo, larg = R - L;
   const tarefas = (p.fazer||'').split(/\n+/).map(x => x.trim().toUpperCase()).filter(Boolean);
   if(!tarefas.length) tarefas.push('—');
   const quebrar = (txt, fs) => {                   // quebra em linhas que cabem na largura
@@ -1549,7 +1548,7 @@ function canvasEtiqueta(o, i){
     return out;
   };
   const montar = (fs, junto) => (junto ? [tarefas.join(' · ')] : tarefas).flatMap(t => quebrar(t, fs));
-  let fs = 26, junto = false, linhas = montar(fs, junto);
+  let fs = 30, junto = false, linhas = montar(fs, junto);
   const cabeAgora = () => linhas.length * Math.round(fs * 1.12) <= alt;
   while(!cabeAgora() && fs > 15){ fs--; linhas = montar(fs, junto); }               // 1º: uma tarefa por linha
   if(!cabeAgora()){ junto = true; fs = 20; linhas = montar(fs, junto);              // 2º: tarefas lado a lado
@@ -1559,11 +1558,11 @@ function canvasEtiqueta(o, i){
   g.font = `800 ${fs}px ${F}`;
   linhas.forEach((t, k) => g.fillText(t, L, topo + fs * .9 + k * lh));
   g.restore();
-  // etiqueta: o quadrado girado 90° no sentido horário, no centro da área útil
+  // etiqueta: o desenho em pé girado 90° no sentido horário, ocupando a área útil (o topo do texto fica em NB_R)
   const c = document.createElement('canvas'); c.width = NB_W; c.height = NB_H;
   const e = c.getContext('2d');
   e.fillStyle = '#fff'; e.fillRect(0, 0, NB_W, NB_H);
-  e.save(); e.translate(NB_TL + Q, Math.round((NB_H - Q) / 2)); e.rotate(Math.PI / 2); e.drawImage(q, 0, 0); e.restore();
+  e.save(); e.translate(NB_R, 0); e.rotate(Math.PI / 2); e.drawImage(q, 0, 0); e.restore();
   // preto e branco puro (a impressora só entende pontos pretos ou brancos)
   const im = e.getImageData(0, 0, NB_W, NB_H), d = im.data;
   for(let k = 0; k < d.length; k += 4){
