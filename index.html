@@ -648,12 +648,12 @@ const Canal = {
     return true;
   }
 };
-/* Contato do cliente com o nº da OS no nome ("OS 8100 - Maria Lima"). O navegador não pode
+/* Contato do cliente com o nº da OS no nome ("Maria Lima - OS 8100"). O navegador não pode
    gravar direto na agenda: baixa um cartão .vcf e o celular abre a tela de salvar contato. */
 function salvarContato(id){
   const o = get(id); if(!o) return;
   if(!String(o.telefone||'').replace(/\D/g,'')) return alert('Esta OS não tem telefone.');
-  const nome = `OS ${o.numero} - ${(o.cliente||'').trim() || 'Cliente'}`;
+  const nome = `${(o.cliente||'').trim() || 'Cliente'} - OS ${o.numero}`;
   const esc = t => String(t).replace(/[\\;,]/g, m => '\\' + m);
   const vcf = ['BEGIN:VCARD', 'VERSION:3.0', `N:;${esc(nome)};;;`, `FN:${esc(nome)}`,
     `TEL;TYPE=CELL:+${fone(o.telefone)}`, `NOTE:${esc(C().loja + ' – ' + unid(o).curto)}`, 'END:VCARD'].join('\r\n');
