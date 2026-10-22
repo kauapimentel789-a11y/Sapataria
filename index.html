@@ -648,6 +648,21 @@ const Canal = {
     return true;
   }
 };
+/* Contato do cliente com o nº da OS no nome ("Maria Lima - OS 8100"). O navegador não pode
+   gravar direto na agenda: baixa um cartão .vcf e o celular abre a tela de salvar contato. */
+function salvarContato(id){
+  const o = get(id); if(!o) return;
+  if(!String(o.telefone||'').replace(/\D/g,'')) return alert('Esta OS não tem telefone.');
+  const nome = `${(o.cliente||'').trim() || 'Cliente'} - OS ${o.numero}`;
+  const esc = t => String(t).replace(/[\\;,]/g, m => '\\' + m);
+  const vcf = ['BEGIN:VCARD', 'VERSION:3.0', `N:;${esc(nome)};;;`, `FN:${esc(nome)}`,
+    `TEL;TYPE=CELL:+${fone(o.telefone)}`, `NOTE:${esc(C().loja + ' – ' + unid(o).curto)}`, 'END:VCARD'].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([vcf], { type:'text/vcard' }));
+  a.download = nome.replace(/[^\p{L}\d\- ]+/gu, '').replace(/[\s-]+/g, '-') + '.vcf';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
 function avisar(id, tipo){
   const o = get(id); if(!o) return;
   if(Canal.enviar(o, tipo, montar(o, tipo))){
@@ -1101,6 +1116,7 @@ function detalhe(id){
   <h4>Imprimir e enviar</h4>
   <div class="dt-grade">
     <button class="b wa" onclick="avisar(${o.id},'recebido');detalhe(${o.id})">📲 ${(o.avisos||[]).some(a => a.tipo === 'recebido') ? 'Reenviar' : 'Enviar'} comprovante</button>
+    <button class="b sec" onclick="salvarContato(${o.id})">👤 Salvar contato</button>
     <button class="b sec" onclick="imprimir(${o.id})">🖨️ Imprimir (2 vias)</button>
     <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${nEtq > 1 ? 'Etiquetas (' + nEtq + ')' : 'Etiqueta ' + tamEtq(o).txt}</button>
   </div>
@@ -1396,6 +1412,7 @@ function confirmarWA(id){
   <div class="hint" style="margin-bottom:8px">Enviar o comprovante ao cliente no WhatsApp? Ele fica com a OS, o que foi deixado, o prazo e a situação do pagamento.</div>
   <div class="card" style="background:#f7f4f1;margin:0 0 10px;font-size:13.5px">${h(montar(o, 'recebido')).replace(/\n/g, '<br>')}</div>
   <button class="b wa" onclick="avisar(${id},'recebido');fechar()">📲 Enviar no WhatsApp</button>
+  <button class="b sec" onclick="salvarContato(${id})">👤 Salvar contato (OS ${o.numero})</button>
   <button class="b sec" onclick="fechar()">Agora não</button>`);
 }
 
