@@ -288,6 +288,35 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
   #modal>div{border-radius:18px 18px 0 0;margin:auto 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom));min-height:60vh}
 }
 
+/* ---------------- detalhe da OS ---------------- */
+.dt-head{display:flex;flex-direction:column;gap:4px}
+.dt-head h3{margin:0!important;font-size:22px!important}
+.dt-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px}
+.dt-info>div{background:var(--soft);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;min-width:0}
+.dt-info small{display:block;color:var(--mut);font-size:11.5px}
+.dt-info b{display:block;font-size:15px;color:var(--ink);overflow-wrap:anywhere}
+.dt-info b.er{color:var(--er)}
+.dt-info span{display:block;font-size:12.5px;color:var(--mut)}
+.dt-acoes{display:flex;flex-wrap:wrap}
+.dt-par{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px}
+.dt-par-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dt-par-top .tag{margin:0}
+.dt-par-v{margin-left:auto;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dt-par ul{margin:6px 0 0;padding-left:20px}
+.dt-par li{margin:2px 0;color:var(--tx);overflow-wrap:anywhere}
+.dt-obs{background:var(--am-50);border-radius:var(--r-sm);padding:9px 12px;font-size:13.5px;color:var(--tx)}
+.dt-pags{margin-top:6px}
+.dt-linha{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--mut);padding:4px 0;border-bottom:1px dashed var(--line2)}
+.dt-linha b{color:var(--ok);font-variant-numeric:tabular-nums}
+.dt-sec{border:1px solid var(--line);border-radius:var(--r-sm);padding:0 12px;margin-top:10px}
+.dt-sec summary{cursor:pointer;font-weight:600;padding:11px 0;color:var(--ink);list-style-position:inside}
+.dt-sec[open]{padding-bottom:12px}
+.dt-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.dt-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 8px}
+.dt-grade .b{margin-right:0}
+.dt-hist{font-size:12.5px;color:var(--mut);border-left:2px solid #eadfd1;padding-left:8px;margin:5px 0}
+.dt-hist b{color:var(--tx)}
+
 /* ---------------- animações de entrada ---------------- */
 .fade{animation:f .18s ease-out}
 .rv{animation:rv .4s var(--ease) both}
@@ -984,70 +1013,99 @@ function fechar(){ document.getElementById('modal').style.display = 'none'; }
 
 function detalhe(id){
   const o = get(id); if(!o) return;
-  const av = avisado(o);
+  const av = avisado(o), ps = o.pares || [], sd = saldo(o), prox = proximo(o);
+  const total = Math.max(0, (+o.valor||0) - (+o.desconto||0));
+  const dia = d => new Date(d).toLocaleDateString('pt-BR').slice(0,5);
 
-  const hist = (o.historico||[]).slice().reverse().map(x =>
-    `<div class="hint" style="border-left:2px solid #eadfd1;padding-left:8px;margin:4px 0">
-      <b>${fdt(x.data)}</b> — ${x.de === x.para ? h(x.nota || 'Atualização') : `${h(x.de||'—')} → <b>${h(x.para)}</b>`}
+  // situação de cada par (só faz sentido mostrar quando a OS tem mais de um)
+  const stPar = p => o.status === 'Cancelado' ? '' : p.entregue ? `<span class="tag cb">Retirado ${dia(p.entregue)}</span>`
+    : (p.pronto || ['Pronto','Entregue'].includes(o.status)) ? `<span class="tag ok">Pronto${p.pronto ? ' ' + dia(p.pronto) : ''}</span>`
+    : '<span class="tag am">Em fila</span>';
+  const pares = ps.map((p,i) => `
+    <div class="dt-par">
+      <div class="dt-par-top"><b>${ps.length > 1 ? 'Par ' + (i+1) : 'Serviço'}</b>${ps.length > 1 ? stPar(p) : ''}
+        ${+p.valor > 0 ? `<span class="dt-par-v">${R(p.valor)}</span>` : ''}</div>
+      <ul>${String(p.fazer||'').split(/\n+/).map(x => x.trim()).filter(Boolean).map(x => `<li>${h(x)}</li>`).join('') || '<li>—</li>'}</ul>
     </div>`).join('');
 
-  const pags = (o.pagamentos||[]).map(p =>
-    `<div class="hint">${fdt(p.data)} · <b>${R(p.valor)}</b> · ${h(p.forma)}</div>`).join('');
+  const hist = (o.historico||[]).slice().reverse().map(x =>
+    `<div class="dt-hist"><b>${fdt(x.data)}</b> ${x.de === x.para ? h(x.nota || 'Atualização') : `${h(x.de||'Nova OS')} → <b>${h(x.para)}</b>${x.nota ? ' · ' + h(x.nota) : ''}`}</div>`).join('');
 
+  const pags = (o.pagamentos||[]).map(p =>
+    `<div class="dt-linha"><span>${fdt(p.data)} · ${h(p.forma)}</span><b>${R(p.valor)}</b></div>`).join('');
+
+  const nEtq = ps.length;
   modal(`
-  <h3>OS #${o.numero} – ${h(o.item)}</h3>
-  ${stTag(o)} ${tagsOS(o)}
+  <div class="dt-head">
+    <h3>OS #${o.numero}</h3>
+    <div>${stTag(o)} ${tagsOS(o)}</div>
+  </div>
+
+  <div class="dt-info">
+    <div><small>Cliente</small><b>${h(o.cliente || '—')}</b><span>${h(o.telefone || '')}</span></div>
+    <div><small>Prazo de entrega</small><b class="${atrasada(o) ? 'er' : ''}">${fd(o.prazo)}</b><span>Entrou ${fd(o.entrada)}</span></div>
+    ${o.responsavel ? `<div><small>Responsável</small><b>${h(o.responsavel)}</b></div>` : ''}
+  </div>
   ${o.orcId && getOrc(o.orcId) ? `<div class="hint" style="margin-top:6px">Veio do orçamento ${getOrc(o.orcId).numero}.</div>` : ''}
 
-  <h4>Dados</h4>
-  <div class="hint">
-    ${h(o.cliente)} · ${h(o.telefone)}<br>
-    Entrada ${fd(o.entrada)} · Prazo ${fd(o.prazo)}<br>
-    <b>O que fazer:</b><br>${parLista(o)}<br>
-    Responsável: ${h(o.responsavel || '—')}<br>
-    ${o.obs ? '<b>Obs.:</b> ' + h(o.obs) : ''}
+  <div class="dt-acoes">
+    ${prox ? `<button class="b" onclick="fechar();mudar(${o.id},'${prox}')">→ Marcar como ${prox}</button>` : ''}
+    ${o.status === 'Pronto' ? `<button class="b wa" onclick="avisar(${o.id},'${av?'lembrete':'pronto'}')">📲 ${av?'Reenviar lembrete':'Avisar que está pronto'}</button>` : ''}
+    ${['Pronto','Entregue'].includes(o.status) && sd > 0 ? `<button class="b ok" onclick="pagouSaldo(${o.id})">💰 Pagou saldo</button>` : ''}
   </div>
+  ${(o.avisos||[]).length ? `<div class="hint" style="margin-top:6px">${o.avisos.map(a => `📲 Avisado (${h(MSG_NOME[a.tipo] || a.tipo)}) em ${fdt(a.data)}`).join('<br>')}</div>` : ''}
+
+  <h4>O que fazer${ps.length > 1 ? ` · ${ps.length} pares` : ''}</h4>
+  ${pares}
+  ${o.obs ? `<div class="dt-obs"><b>Observação:</b> ${h(o.obs)}</div>` : ''}
 
   <h4>Valores</h4>
-  <div class="hint">Valor ${R(o.valor)} · Desconto ${R(o.desconto||0)} · Pago ${R(pago(o))} ·
-    <b>Saldo ${R(saldo(o))}</b>${o.promessa?` · Promessa ${fd(o.promessa)}`:''}</div>
-
-  <h4>Fluxo</h4>
-  ${proximo(o) ? `<button class="b" onclick="fechar();mudar(${o.id},'${proximo(o)}')">→ Avançar para ${proximo(o)}</button>` : ''}
-  ${o.status === 'Pronto' ? `<button class="b wa" onclick="avisar(${o.id},'${av?'lembrete':'pronto'}')">📲 ${av?'Reenviar lembrete':'Avisar no WhatsApp'}</button>` : ''}
-  ${(o.avisos||[]).length ? `<div class="hint">${o.avisos.map(a => `Cliente avisado (${a.tipo}) em ${fdt(a.data)}`).join('<br>')}</div>` : ''}
-
-  <h4>Receber pagamento</h4>
-  <div class="row3">
-    <div><label>Valor (R$)</label><input id="pv" type="number" step="0.01" inputmode="decimal" value="${saldo(o).toFixed(2)}"></div>
-    <div><label>Forma</label>
-      <select id="pf"><option>Pix</option><option>Dinheiro</option><option>Cartão débito</option><option>Cartão crédito</option><option>Transferência</option></select></div>
-    <div><label>&nbsp;</label><button class="b ok" style="width:100%" onclick="receber(${o.id})">Registrar</button></div>
+  <div class="resumo r4">
+    <div><small>Total</small><b>${+o.valor > 0 ? R(total) : 'A combinar'}</b></div>
+    <div><small>Desconto</small><b>${R(o.desconto||0)}</b></div>
+    <div class="ok"><small>Pago</small><b>${R(pago(o))}</b></div>
+    <div class="${sd > 0 ? 'am' : 'ok'}"><small>Falta pagar</small><b>${sd > 0 ? R(sd) : 'Quitado ✅'}</b></div>
   </div>
-  <button class="b sec sm" onclick="document.getElementById('pv').value='${saldo(o).toFixed(2)}'">Quitar saldo</button>
-  <button class="b sec sm" onclick="document.getElementById('pv').value='${(saldo(o)/2).toFixed(2)}'">Metade do saldo</button>
+  ${o.promessa ? `<div class="hint">Promessa de pagamento: <b>${fd(o.promessa)}</b></div>` : ''}
+  ${pags ? `<div class="dt-pags">${pags}</div>` : ''}
 
-  <h4>Negociação</h4>
-  <div class="row3">
-    <div><label>Desconto (R$)</label><input id="pd" type="number" step="0.01" inputmode="decimal" value="${o.desconto||0}"></div>
-    <div><label>Promessa de pagamento</label><input id="pp" type="date" value="${o.promessa||''}"></div>
-    <div><label>&nbsp;</label><button class="b sec" style="width:100%" onclick="negociar(${o.id})">Salvar</button></div>
-  </div>
-  <div style="display:flex;flex-wrap:wrap">
+  <details class="dt-sec"${sd > 0 && o.status === 'Pronto' ? ' open' : ''}>
+    <summary>💰 Receber pagamento</summary>
+    <div class="dt-form">
+      <div><label>Valor (R$)</label><input id="pv" type="number" step="0.01" inputmode="decimal" value="${sd.toFixed(2)}"></div>
+      <div><label>Forma</label>
+        <select id="pf"><option>Pix</option><option>Dinheiro</option><option>Cartão débito</option><option>Cartão crédito</option><option>Transferência</option></select></div>
+    </div>
+    <button class="b ok" onclick="receber(${o.id})">Registrar pagamento</button>
+    <button class="b sec sm" onclick="document.getElementById('pv').value='${sd.toFixed(2)}'">Quitar saldo</button>
+    <button class="b sec sm" onclick="document.getElementById('pv').value='${(sd/2).toFixed(2)}'">Metade</button>
+  </details>
+
+  <details class="dt-sec">
+    <summary>🤝 Desconto e promessa de pagamento</summary>
+    <div class="dt-form">
+      <div><label>Desconto (R$)</label><input id="pd" type="number" step="0.01" inputmode="decimal" value="${o.desconto||0}"></div>
+      <div><label>Promessa de pagamento</label><input id="pp" type="date" value="${o.promessa||''}"></div>
+    </div>
+    <button class="b sec" onclick="negociar(${o.id})">Salvar</button>
     ${SITUACOES.slice(2).map(s => `<button class="b wa sm" onclick="avisar(${o.id},'${s[0]}')">${s[1]}</button>`).join('')}
+  </details>
+
+  <h4>Imprimir e enviar</h4>
+  <div class="dt-grade">
+    <button class="b wa" onclick="avisar(${o.id},'recebido');detalhe(${o.id})">📲 ${(o.avisos||[]).some(a => a.tipo === 'recebido') ? 'Reenviar' : 'Enviar'} comprovante</button>
+    <button class="b sec" onclick="imprimir(${o.id})">🖨️ Imprimir (2 vias)</button>
+    <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${nEtq > 1 ? 'Etiquetas (' + nEtq + ')' : 'Etiqueta ' + tamEtq(o).txt}</button>
   </div>
+  ${nEtq > 1 ? `<div>${ps.map((_,i) => `<button class="b sec sm" onclick="imprimirEtiqueta(${o.id},${i})">🏷️ Par ${i+1}</button>`).join('')}</div>` : ''}
 
-  ${pags ? `<h4>Pagamentos</h4>${pags}` : ''}
-
-  <h4>Histórico</h4>
-  ${hist || '<div class="hint">Sem registros.</div>'}
+  <details class="dt-sec">
+    <summary>🕓 Histórico (${(o.historico||[]).length})</summary>
+    ${hist || '<div class="hint">Sem registros.</div>'}
+  </details>
 
   <div class="sep"></div>
-  <button class="b wa" onclick="avisar(${o.id},'recebido');detalhe(${o.id})">📲 ${(o.avisos||[]).some(a => a.tipo === 'recebido') ? 'Reenviar comprovante' : 'Enviar comprovante'} ao cliente</button>
-  <button class="b" onclick="imprimir(${o.id})">🖨️ Imprimir (2 vias)</button>
-  <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${(o.pares||[]).length>1 ? 'Todas as etiquetas ('+o.pares.length+')' : 'Etiqueta '+tamEtq(o).txt}</button>
-  ${(o.pares||[]).length>1 ? o.pares.map((_,i) => `<button class="b sec sm" onclick="imprimirEtiqueta(${o.id},${i})">🏷️ Par ${i+1}</button>`).join('') : ''}
-  <button class="b sec" onclick="formOS(${o.id})">✏️ Editar (valores, pagamentos, status)</button>
+  <button class="b sec" onclick="formOS(${o.id})">✏️ Editar OS</button>
   ${!['Cancelado','Entregue'].includes(o.status) ? `<button class="b er" onclick="mudar(${o.id},'Cancelado');fechar()">Cancelar OS</button>` : ''}
   <button class="b sec" onclick="fechar()">Fechar</button>
   `);
