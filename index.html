@@ -587,6 +587,8 @@ const parLista = o => { const ps = o.pares||[];
     : p.pronto && ps.length>1 && o.status === 'Em fila' ? ` <span class="tag ok">✅ pronto ${new Date(p.pronto).toLocaleDateString('pt-BR')}</span>` : ''}`).join('<br>'); };
 // retirada por par: p.entregue guarda a data/hora em que aquele par saiu da loja
 const paresRetirados = o => (o.pares||[]).filter(p => p.entregue).length;
+// OS ainda em fila com par pronto que o cliente pode levar antes (ex.: deixou 3, precisa de 1 já)
+const retiraAntes = o => o.status === 'Em fila' && (o.pares||[]).length > 1 && o.pares.some(p => p.pronto && !p.entregue);
 // pronto por par: p.pronto guarda quando aquele par ficou pronto (um par pode ficar pronto antes e ser guardado)
 const paresProntos = o => (o.pares||[]).filter(p => p.pronto).length;
 const pago    = o => (o.pagamentos||[]).reduce((t,p) => t + (+p.valor||0), 0);
@@ -705,15 +707,18 @@ function confirmarPronto(id){
 }
 
 /* Retirada de OS com vários pares: por padrão sai tudo; desmarcando, o cliente
-   leva só alguns pares e a OS continua Pronto até o último par ser retirado. */
+   leva só alguns pares e a OS continua Pronto até o último par ser retirado.
+   Com a OS ainda Em fila, só os pares já prontos podem sair; os outros seguem em serviço. */
 function retirada(id){
   const o = get(id); if(!o) return;
   const ps = o.pares || [];
   modal(`
   <h3>Retirada – OS #${o.numero}</h3>
-  <div class="hint">Desmarque os pares que vão ficar na loja.</div>
+  <div class="hint">${o.status === 'Em fila' ? 'Marque os pares prontos que o cliente está levando.' : 'Desmarque os pares que vão ficar na loja.'}</div>
   ${ps.map((p,i) => p.entregue
     ? `<div class="hint" style="padding:6px 0">✅ <b>Par ${i+1}</b> – ${parTxt(p)} · já retirado em ${new Date(p.entregue).toLocaleDateString('pt-BR')}</div>`
+    : o.status === 'Em fila' && !p.pronto
+    ? `<div class="hint" style="padding:6px 0">⏳ <b>Par ${i+1}</b> – ${parTxt(p)} · ainda em serviço</div>`
     : `<label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:600;cursor:pointer">
         <input type="checkbox" class="ret-par" value="${i}" checked style="width:auto;margin:0"> Par ${i+1} – ${parTxt(p)}</label>`).join('')}
   ${saldo(o) > 0 ? `<div class="hint" style="margin-top:6px">Saldo em aberto: <b>${R(saldo(o))}</b></div>` : ''}
@@ -792,6 +797,7 @@ function cartao(o){
     </div>
     ${o.status==='Pronto'&&saldo(o)>0?`<button class="b ok" onclick="pagouSaldo(${o.id})">💰 Pagou saldo</button>`:''}
     ${p?`<button class="b" onclick="mudar(${o.id},'${p}')">→ ${p}</button>`:''}
+    ${retiraAntes(o)?`<button class="b" onclick="retirada(${o.id})">📦 Retirou par pronto</button>`:''}
     ${o.status==='Pronto'?`<button class="b wa" onclick="avisar(${o.id},'${av?'lembrete':'pronto'}')">📲 ${av?'Reenviar lembrete':'Avisar no WhatsApp'}</button>`:''}
     <button class="b sec" onclick="detalhe(${o.id})">Detalhes</button>
     <button class="b sec" onclick="formOS(${o.id})">✏️ Editar</button>
@@ -1050,6 +1056,7 @@ function detalhe(id){
 
   <div class="dt-acoes">
     ${prox ? `<button class="b" onclick="fechar();mudar(${o.id},'${prox}')">→ Marcar como ${prox}</button>` : ''}
+    ${retiraAntes(o) ? `<button class="b" onclick="fechar();retirada(${o.id})">📦 Cliente retirou par pronto</button>` : ''}
     ${o.status === 'Pronto' ? `<button class="b wa" onclick="avisar(${o.id},'${av?'lembrete':'pronto'}')">📲 ${av?'Reenviar lembrete':'Avisar que está pronto'}</button>` : ''}
     ${['Pronto','Entregue'].includes(o.status) && sd > 0 ? `<button class="b ok" onclick="pagouSaldo(${o.id})">💰 Pagou saldo</button>` : ''}
   </div>
