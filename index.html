@@ -1524,11 +1524,7 @@ function canvasEtiqueta(o, i){
     g.strokeRect(R - w, 12, w, 26); g.fillText(t, R - w + 5, 32);
   }
   g.fillRect(L, 44, R - L, 3);
-  // rodapé: prazo
-  g.fillRect(L, A - 34, R - L, 3);
-  g.font = `900 22px ${F}`; g.fillText('Prazo: ' + (o.prazo ? fd(o.prazo).slice(0,5) : '—'), L, A - 8);
-  g.textAlign = 'right'; g.fillText(siglaEtq(o), R, A - 8); g.textAlign = 'left';
-  // meio: tarefas em maiúsculas, a letra diminui até caber
+  // meio: tarefas em maiúsculas, a maior letra que couber (tudo encostado no topo)
   const topo = 51, alt = A - 38 - topo, larg = R - L;
   const tarefas = (p.fazer||'').split(/\n+/).map(x => x.trim().toUpperCase()).filter(Boolean);
   if(!tarefas.length) tarefas.push('—');
@@ -1548,7 +1544,7 @@ function canvasEtiqueta(o, i){
     return out;
   };
   const montar = (fs, junto) => (junto ? [tarefas.join(' · ')] : tarefas).flatMap(t => quebrar(t, fs));
-  let fs = 30, junto = false, linhas = montar(fs, junto);
+  let fs = 40, junto = false, linhas = montar(fs, junto);
   const cabeAgora = () => linhas.length * Math.round(fs * 1.12) <= alt;
   while(!cabeAgora() && fs > 15){ fs--; linhas = montar(fs, junto); }               // 1º: uma tarefa por linha
   if(!cabeAgora()){ junto = true; fs = 20; linhas = montar(fs, junto);              // 2º: tarefas lado a lado
@@ -1558,6 +1554,11 @@ function canvasEtiqueta(o, i){
   g.font = `800 ${fs}px ${F}`;
   linhas.forEach((t, k) => g.fillText(t, L, topo + fs * .9 + k * lh));
   g.restore();
+  // prazo logo abaixo das tarefas (sobra pouco espaço no fim da etiqueta)
+  const py = Math.min(topo + linhas.length * lh + 4, A - 34);
+  g.fillRect(L, py, R - L, 3);
+  g.font = `900 22px ${F}`; g.fillText('Prazo: ' + (o.prazo ? fd(o.prazo).slice(0,5) : '—'), L, py + 26);
+  g.textAlign = 'right'; g.fillText(siglaEtq(o), R, py + 26); g.textAlign = 'left';
   // etiqueta: o desenho em pé girado 90° no sentido horário, ocupando a área útil (o topo do texto fica em NB_R)
   const c = document.createElement('canvas'); c.width = NB_W; c.height = NB_H;
   const e = c.getContext('2d');
