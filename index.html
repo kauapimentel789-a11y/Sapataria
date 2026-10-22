@@ -554,9 +554,12 @@ function renderUnbar(){
 const itemMsg = o => (o.legado && o.item) ? o.item : 'conserto';   // texto usado nas mensagens de WhatsApp
 const parTxt  = p => h(p.fazer||'').replace(/\n/g, ' + ');
 const parLista = o => { const ps = o.pares||[];
-  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''}${p.entregue && ps.length>1 ? ` <span class="tag cb">✅ retirado ${new Date(p.entregue).toLocaleDateString('pt-BR')}</span>` : ''}`).join('<br>'); };
+  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''}${p.entregue && ps.length>1 ? ` <span class="tag cb">✅ retirado ${new Date(p.entregue).toLocaleDateString('pt-BR')}</span>`
+    : p.pronto && ps.length>1 && o.status === 'Em fila' ? ` <span class="tag ok">✅ pronto ${new Date(p.pronto).toLocaleDateString('pt-BR')}</span>` : ''}`).join('<br>'); };
 // retirada por par: p.entregue guarda a data/hora em que aquele par saiu da loja
 const paresRetirados = o => (o.pares||[]).filter(p => p.entregue).length;
+// pronto por par: p.pronto guarda quando aquele par ficou pronto (um par pode ficar pronto antes e ser guardado)
+const paresProntos = o => (o.pares||[]).filter(p => p.pronto).length;
 const pago    = o => (o.pagamentos||[]).reduce((t,p) => t + (+p.valor||0), 0);
 const saldo   = o => Math.max(0, (+o.valor||0) - (+o.desconto||0) - pago(o));
 const ABERTOS = ['Em fila'];
@@ -627,12 +630,49 @@ function avisar(id, tipo){
 function mudar(id, novo){
   const o = get(id); if(!o) return;
   if(novo === 'Entregue' && (o.pares||[]).length > 1) return retirada(id);
+  if(novo === 'Pronto' && (o.pares||[]).length > 1 && !o.pares.every(p => p.pronto)) return prontoPares(id);
   if(novo === 'Entregue' && saldo(o) > 0 && !confirm(`Ainda há saldo de ${R(saldo(o))}. Entregar mesmo assim?`)) return;
   if(novo === 'Cancelado' && !confirm('Cancelar esta OS? O histórico será mantido.')) return;
   o.historico.push({ data:agora(), de:o.status, para:novo, nota:'' });
   if(novo === 'Entregue') (o.pares||[]).forEach(p => { if(!p.entregue) p.entregue = agora(); });
+  if(novo === 'Pronto') (o.pares||[]).forEach(p => { if(!p.pronto) p.pronto = agora(); });
   o.status = novo; save(); render();
   if(novo === 'Pronto') detalhe(id);        // ao ficar pronto: já abre com o botão de aviso
+}
+
+/* "Pronto" em OS com vários pares: por padrão todos ficam prontos; desmarcando, só os
+   pares marcados ficam prontos (guardados) e a OS continua Em fila até o último ficar pronto. */
+function prontoPares(id){
+  const o = get(id); if(!o) return;
+  const ps = o.pares || [];
+  modal(`
+  <h3>Pronto – OS #${o.numero}</h3>
+  <div class="hint">Desmarque os pares que ainda não ficaram prontos.</div>
+  ${ps.map((p,i) => p.pronto
+    ? `<div class="hint" style="padding:6px 0">✅ <b>Par ${i+1}</b> – ${parTxt(p)} · pronto desde ${new Date(p.pronto).toLocaleDateString('pt-BR')}</div>`
+    : `<label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:600;cursor:pointer">
+        <input type="checkbox" class="pr-par" value="${i}" checked style="width:auto;margin:0"> Par ${i+1} – ${parTxt(p)}</label>`).join('')}
+  <div class="sep"></div>
+  <button class="b ok" onclick="confirmarPronto(${o.id})">Confirmar</button>
+  <button class="b sec" onclick="fechar()">Voltar</button>`);
+}
+function confirmarPronto(id){
+  const o = get(id); if(!o) return;
+  const ps = o.pares || [];
+  const marc = [...document.querySelectorAll('.pr-par:checked')].map(x => +x.value);
+  if(!marc.length) return alert('Marque pelo menos um par.');
+  const quando = agora();
+  marc.forEach(i => { ps[i].pronto = quando; });
+  const quais = marc.map(i => 'par ' + (i+1)).join(', ');
+  if(ps.every(p => p.pronto)){
+    o.historico.push({ data:quando, de:o.status, para:'Pronto', nota: marc.length < ps.length ? `Ficou pronto o ${quais}` : '' });
+    o.status = 'Pronto'; save(); render();
+    detalhe(id);                            // ao ficar pronto: já abre com o botão de aviso
+  } else {
+    o.historico.push({ data:quando, de:o.status, para:o.status,
+      nota:`Pronto e guardado: ${quais} (${paresProntos(o)} de ${ps.length} pares prontos)` });
+    save(); fechar(); render();
+  }
 }
 
 /* Retirada de OS com vários pares: por padrão sai tudo; desmarcando, o cliente
@@ -702,6 +742,7 @@ function tagsOS(o){
     if(saldo(o) <= 0.009) t.push('<span class="tag ok">PAGO</span>');
     else if(pago(o) > 0) t.push(`<span class="tag ok">ENTRADA ${R(pago(o))}</span>`);
   }
+  if(o.status === 'Em fila' && paresProntos(o) && o.pares.length > 1) t.push(`<span class="tag ok">${paresProntos(o)}/${o.pares.length} PRONTOS</span>`);
   if(o.status !== 'Entregue' && paresRetirados(o)) t.push(`<span class="tag cb">${paresRetirados(o)}/${o.pares.length} RETIRADOS</span>`);
   if(semAviso(o)) t.push('<span class="tag am">SEM AVISO</span>');
   if(parado(o)) t.push(`<span class="tag er">PARADO ${diasParadoQtd(o)}d</span>`);
@@ -972,7 +1013,7 @@ function detalhe(id){
     <b>Saldo ${R(saldo(o))}</b>${o.promessa?` · Promessa ${fd(o.promessa)}`:''}</div>
 
   <h4>Fluxo</h4>
-  ${proximo(o) ? `<button class="b" onclick="mudar(${o.id},'${proximo(o)}');fechar()">→ Avançar para ${proximo(o)}</button>` : ''}
+  ${proximo(o) ? `<button class="b" onclick="fechar();mudar(${o.id},'${proximo(o)}')">→ Avançar para ${proximo(o)}</button>` : ''}
   ${o.status === 'Pronto' ? `<button class="b wa" onclick="avisar(${o.id},'${av?'lembrete':'pronto'}')">📲 ${av?'Reenviar lembrete':'Avisar no WhatsApp'}</button>` : ''}
   ${(o.avisos||[]).length ? `<div class="hint">${o.avisos.map(a => `Cliente avisado (${a.tipo}) em ${fdt(a.data)}`).join('<br>')}</div>` : ''}
 
@@ -1095,7 +1136,7 @@ function formOS(id, orcId){
     pares:orc ? orc.pares : [], prioridade:'normal', valor:orc ? orc.valor || '' : '', desconto:0,
     cliente:orc ? orc.cliente : '', telefone:orc ? orc.telefone : '', obs:orc ? orc.obs : ''
   };
-  PARES = (o.pares||[]).map(p => ({ fazer:p.fazer||'', horas:+p.horas || +C().tempoPar || 1, valor:+p.valor > 0 ? +p.valor : '', entregue:p.entregue || '' }));
+  PARES = (o.pares||[]).map(p => ({ fazer:p.fazer||'', horas:+p.horas || +C().tempoPar || 1, valor:+p.valor > 0 ? +p.valor : '', entregue:p.entregue || '', pronto:p.pronto || '' }));
   if(!PARES.length) PARES = [{ fazer:'', horas:+C().tempoPar || 1, valor:'' }];
   PAR_ATIVO = 0;
   PAGS = id ? (o.pagamentos||[]).map(p => ({ data:p.data, dia:diaDe(p.data) || hoje(), valor:+p.valor || '', forma:p.forma || 'Pix' })) : [];
@@ -1196,7 +1237,7 @@ function salvarOS(id){
   const cli = document.getElementById('fc').value.trim();
   const pares = PARES.map(p => { const x = { fazer:(p.fazer||'').trim(), horas:+p.horas || +C().tempoPar || 1 };
     if(+p.valor > 0) x.valor = Math.round(+p.valor * 100) / 100;
-    if(p.entregue) x.entregue = p.entregue; return x; });
+    if(p.entregue) x.entregue = p.entregue; if(p.pronto) x.pronto = p.pronto; return x; });
   const vazio = pares.findIndex(p => !p.fazer);
   const it  = pares.map(p => p.fazer.replace(/\s*\n\s*/g, ' + ')).join(' | ');
   const fe  = document.getElementById('fe').value;
@@ -1246,6 +1287,7 @@ function salvarOS(id){
     o.historico.push({ data:agora(), de:o.status, para:o.status, nota:'OS editada' + (mud.length ? ': ' + mud.join('; ') : '') });
     if(st !== o.status){ o.historico.push({ data:agora(), de:o.status, para:st, nota:'Status alterado na edição' }); o.status = st; }
     if(o.status === 'Entregue') o.pares.forEach(p => { if(!p.entregue) p.entregue = agora(); });
+    if(o.status === 'Em fila' && o.pares.every(p => p.pronto)) o.pares.forEach(p => { delete p.pronto; });   // voltou para a fila
     if(saldo(o) <= 0.009) o.promessa = '';
   } else {
     // Pagamento informado na abertura da OS: nada, uma parte (sinal) ou tudo
