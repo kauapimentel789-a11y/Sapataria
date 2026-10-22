@@ -389,7 +389,7 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
 .etq-mid.inl .s+.s::before{content:' · ';font-weight:400}
 .etq-mid.inl .o{display:block}
 .etq-mid .o{font-size:6.5pt;margin-top:.8mm;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.etq-bot{border-top:.4mm solid #000;padding-top:.8mm;font-size:11pt;font-weight:900;line-height:1.2;white-space:nowrap}
+.etq-bot{border-top:.4mm solid #000;padding-top:.8mm;font-size:11pt;font-weight:900;line-height:1.2;white-space:nowrap;display:flex;justify-content:space-between;gap:2mm}
 .etq-par{font-size:11pt;font-weight:900;border:.35mm solid #000;border-radius:1mm;padding:0 1.2mm;line-height:1.25}
 .etq-bot .l1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .etq-bot .l2{display:flex;justify-content:space-between;align-items:center;gap:2mm}
@@ -1326,6 +1326,9 @@ function imprimir(id){
    Tamanho por unidade: o Aventureiro tem impressora de 5×3 cm; as demais, 5×4 cm. */
 const ETQ_TAM = { aventureiro: { h:30, txt:'5×3 cm', cls:' e30' } };
 const tamEtq  = o => ETQ_TAM[o.unidade] || { h:40, txt:'5×4 cm', cls:'' };
+/* Sigla da unidade no canto da etiqueta, para saber de qual loja é o calçado. */
+const ETQ_SIGLA = { sams:"Sam's", aventureiro:'Avt' };
+const siglaEtq = o => ETQ_SIGLA[o.unidade] || unid(o).curto || '';
 function htmlEtiqueta(o, i){
   const ps = o.pares || [], p = ps[i] || { fazer:'' };
   const prazo = o.prazo ? fd(o.prazo).slice(0,5) : '—';
@@ -1334,7 +1337,7 @@ function htmlEtiqueta(o, i){
   return `<div class="etq${tamEtq(o).cls}">
     <div class="etq-top"><span class="etq-os"><small>OS</small>${h(o.numero)}</span>${ps.length>1 ? `<span class="etq-par">${i+1}/${ps.length}</span>` : ''}</div>
     <div class="etq-mid">${servs}</div>
-    <div class="etq-bot">Prazo: ${prazo}</div>
+    <div class="etq-bot"><span>Prazo: ${prazo}</span><span>${h(siglaEtq(o))}</span></div>
   </div>`;
 }
 /* Monta fora da tela e diminui a letra até caber na altura da etiqueta. */
@@ -1419,6 +1422,7 @@ function canvasEtiqueta(o, i){
   // rodapé: prazo
   g.fillRect(L, NB_H - 44, R - L, 3);
   g.font = `900 28px ${F}`; g.fillText('Prazo: ' + (o.prazo ? fd(o.prazo).slice(0,5) : '—'), L, NB_H - 14);
+  g.textAlign = 'right'; g.fillText(siglaEtq(o), R, NB_H - 14); g.textAlign = 'left';
   // meio: tarefas em maiúsculas, a letra diminui até caber
   const topo = 64, alt = NB_H - 48 - topo, larg = R - L;
   const tarefas = (p.fazer||'').split(/\n+/).map(x => x.trim().toUpperCase()).filter(Boolean);
