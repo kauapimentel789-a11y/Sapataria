@@ -376,7 +376,7 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
 }
 @media print{#nuvem-selo,#login{display:none!important}}
 
-/* ===== ETIQUETA 5×4 cm (adesivo para o calçado) — inalterado ===== */
+/* ===== ETIQUETA 5×4 cm (adesivo para o calçado). Aventureiro usa 5×3 cm (classe .e30, abaixo) ===== */
 .etq{box-sizing:border-box;width:50mm;height:40mm;padding:2mm;display:flex;flex-direction:column;overflow:hidden;
   font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;line-height:1.15;break-inside:avoid;page-break-after:avoid}
 .etq-top{display:flex;align-items:baseline;justify-content:space-between;gap:2mm;border-bottom:.4mm solid #000;padding-bottom:1mm}
@@ -401,6 +401,14 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
   body.etq-mode .etq{break-after:page;page-break-after:always}
   body.etq-mode .etq:last-child{break-after:auto;page-break-after:auto}
 }
+/* Etiqueta 5×3 cm (impressora do Aventureiro): mesma etiqueta, mais baixa e compacta */
+.etq.e30{height:30mm;padding:1.5mm 2mm}
+.etq.e30 .etq-top{padding-bottom:.6mm}
+.etq.e30 .etq-os{font-size:15pt}
+.etq.e30 .etq-os small{font-size:6.5pt}
+.etq.e30 .etq-par{font-size:9pt}
+.etq.e30 .etq-mid{padding-top:.6mm}
+.etq.e30 .etq-bot{font-size:9pt;padding-top:.5mm;line-height:1.15}
 </style>
 </head>
 <body>
@@ -996,7 +1004,7 @@ function detalhe(id){
   <div class="sep"></div>
   <button class="b wa" onclick="avisar(${o.id},'recebido');detalhe(${o.id})">📲 ${(o.avisos||[]).some(a => a.tipo === 'recebido') ? 'Reenviar comprovante' : 'Enviar comprovante'} ao cliente</button>
   <button class="b" onclick="imprimir(${o.id})">🖨️ Imprimir (2 vias)</button>
-  <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${(o.pares||[]).length>1 ? 'Todas as etiquetas ('+o.pares.length+')' : 'Etiqueta 5×4 cm'}</button>
+  <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${(o.pares||[]).length>1 ? 'Todas as etiquetas ('+o.pares.length+')' : 'Etiqueta '+tamEtq(o).txt}</button>
   ${(o.pares||[]).length>1 ? o.pares.map((_,i) => `<button class="b sec sm" onclick="imprimirEtiqueta(${o.id},${i})">🏷️ Par ${i+1}</button>`).join('') : ''}
   <button class="b sec" onclick="formOS(${o.id})">✏️ Editar (valores, pagamentos, status)</button>
   ${!['Cancelado','Entregue'].includes(o.status) ? `<button class="b er" onclick="mudar(${o.id},'Cancelado');fechar()">Cancelar OS</button>` : ''}
@@ -1142,7 +1150,7 @@ function formOS(id, orcId){
   </div>
   <div class="resumo" id="pgr"></div>`}
   <label>Observações</label><textarea id="fo">${h(o.obs||'')}</textarea>
-  ${id ? '' : `<label style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-weight:600;cursor:pointer"><input type="checkbox" id="fetq" style="width:auto;margin:0" ${localStorage.getItem('sap_etq') !== '0' ? 'checked' : ''}>🏷️ Imprimir etiqueta 5×4 cm ao salvar</label>`}
+  ${id ? '' : `<label style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-weight:600;cursor:pointer"><input type="checkbox" id="fetq" style="width:auto;margin:0" ${localStorage.getItem('sap_etq') !== '0' ? 'checked' : ''}>🏷️ Imprimir etiqueta ao salvar</label>`}
   ${id ? '' : `<label style="display:flex;align-items:center;gap:8px;margin:8px 0 4px;font-weight:600;cursor:pointer"><input type="checkbox" id="fwa" style="width:auto;margin:0" ${localStorage.getItem('sap_wa') !== '0' ? 'checked' : ''}>📲 Enviar comprovante ao cliente no WhatsApp ao salvar</label>
   <div class="hint" style="margin-bottom:8px">Vai o nº da OS, o que foi deixado, o prazo e o valor (pago, sinal ou a pagar).</div>`}
   <button class="b" onclick="salvarOS(${id||0})">${id ? 'Salvar alterações' : 'Salvar OS'}</button>
@@ -1314,19 +1322,22 @@ function imprimir(id){
 
 /* ================= 14C. ETIQUETA 5×4 cm (adesivo para o calçado) ========
    Uma etiqueta por PAR. Mostra só: nº da OS (grande), o que fazer naquele par
-   e o prazo de entrega. Se a OS tem vários pares, mostra também "1/3". */
+   e o prazo de entrega. Se a OS tem vários pares, mostra também "1/3".
+   Tamanho por unidade: o Aventureiro tem impressora de 5×3 cm; as demais, 5×4 cm. */
+const ETQ_TAM = { aventureiro: { h:30, txt:'5×3 cm', cls:' e30' } };
+const tamEtq  = o => ETQ_TAM[o.unidade] || { h:40, txt:'5×4 cm', cls:'' };
 function htmlEtiqueta(o, i){
   const ps = o.pares || [], p = ps[i] || { fazer:'' };
   const prazo = o.prazo ? fd(o.prazo).slice(0,5) : '—';
   const linhas = (p.fazer||'').split(/\n+/).map(x => x.trim()).filter(Boolean);
   const servs = linhas.length ? linhas.map(x => `<div class="s">${h(x)}</div>`).join('') : '<div class="s">—</div>';
-  return `<div class="etq">
+  return `<div class="etq${tamEtq(o).cls}">
     <div class="etq-top"><span class="etq-os"><small>OS</small>${h(o.numero)}</span>${ps.length>1 ? `<span class="etq-par">${i+1}/${ps.length}</span>` : ''}</div>
     <div class="etq-mid">${servs}</div>
     <div class="etq-bot">Prazo: ${prazo}</div>
   </div>`;
 }
-/* Monta fora da tela e diminui a letra até caber nos 4 cm de altura. */
+/* Monta fora da tela e diminui a letra até caber na altura da etiqueta. */
 function etiquetaPronta(o, i){
   const t = document.createElement('div');
   t.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden';
@@ -1336,8 +1347,9 @@ function etiquetaPronta(o, i){
   const cabeAgora = () => mid.scrollHeight <= mid.clientHeight + 1;
   const reduzir = (ini, min) => { let fs = ini; mid.style.setProperty('--fs', fs + 'pt');
     while(!cabeAgora() && fs > min){ fs -= .5; mid.style.setProperty('--fs', fs + 'pt'); } };
-  reduzir(16, 8);                                   // 1º: uma tarefa por linha
-  if(!cabeAgora()){ mid.classList.add('inl'); reduzir(11, 6); }   // 2º: tarefas lado a lado
+  const baixa = tamEtq(o).h < 40;
+  reduzir(baixa ? 12 : 16, baixa ? 7 : 8);          // 1º: uma tarefa por linha
+  if(!cabeAgora()){ mid.classList.add('inl'); reduzir(baixa ? 9 : 11, 6); }   // 2º: tarefas lado a lado
   const cabe = cabeAgora();
   const html = t.innerHTML;
   t.remove();
@@ -1353,11 +1365,11 @@ function imprimirEtiqueta(id, idx, depois){
   const idxs = idx == null ? (o.pares||[]).map((_, i) => i) : [idx];
   if(!idxs.length) return alert('Esta OS não tem nenhum par cadastrado.');
   const rs = idxs.map(i => etiquetaPronta(o, i));
-  if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos 5×4 cm e será cortado. Imprimir mesmo assim?')) return;
+  if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos '+tamEtq(o).txt+' e será cortado. Imprimir mesmo assim?')) return;
   document.getElementById('print').innerHTML = rs.map(r => r.html).join('');
   const st = document.createElement('style');           // tamanho de página só durante a etiqueta
   st.id = 'etq-page';
-  st.textContent = '@page{size:50mm 40mm;margin:0}';
+  st.textContent = '@page{size:50mm '+tamEtq(o).h+'mm;margin:0}';
   document.head.appendChild(st);
   document.body.classList.add('etq-mode');
   fechar();
