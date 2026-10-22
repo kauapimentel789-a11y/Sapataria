@@ -1359,11 +1359,14 @@ function limparEtiqueta(){
   const st = document.getElementById('etq-page'); if(st) st.remove();
   document.body.classList.remove('etq-mode');
 }
-/* Sem idx: imprime uma etiqueta para CADA par da OS. Com idx: só aquele par. */
-function imprimirEtiqueta(id, idx, depois){
+/* Sem idx: imprime uma etiqueta para CADA par da OS. Com idx: só aquele par.
+   Aventureiro usa a Niimbot B1 (Bluetooth): vai para a tela da Niimbot, a não ser
+   que peçam a impressão pelo navegador (navegador = true). */
+function imprimirEtiqueta(id, idx, depois, navegador){
   const o = get(id); if(!o) return;
   const idxs = idx == null ? (o.pares||[]).map((_, i) => i) : [idx];
   if(!idxs.length) return alert('Esta OS não tem nenhum par cadastrado.');
+  if(ETQ_NIIMBOT[o.unidade] && !navegador) return niimbotEtiqueta(id, idx, idxs, depois);
   const rs = idxs.map(i => etiquetaPronta(o, i));
   if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos '+tamEtq(o).txt+' e será cortado. Imprimir mesmo assim?')) return;
   document.getElementById('print').innerHTML = rs.map(r => r.html).join('');
@@ -1376,6 +1379,144 @@ function imprimirEtiqueta(id, idx, depois){
   window.addEventListener('afterprint', limparEtiqueta, { once:true });
   if(typeof depois === 'function') window.addEventListener('afterprint', depois, { once:true });
   setTimeout(() => window.print(), 60);
+}
+
+/* ================= 14D. ETIQUETA NA NIIMBOT B1 (Bluetooth, Aventureiro) ====
+   A Niimbot não aparece como impressora do sistema: o Chrome (Android/PC) conversa
+   com ela direto pelo Bluetooth usando a biblioteca aberta niimbluelib (vendor/).
+   A etiqueta é desenhada num canvas em preto e branco puro, 8 pontos por mm (203 dpi).
+   Não funciona no iPhone (o Safari não libera Bluetooth para sites). */
+const ETQ_NIIMBOT = { aventureiro: true };
+const NB_W = 384, NB_H = 240;          // cabeça da B1 = 48 mm; etiqueta 5×3 cm = 30 mm de altura
+const NB = { cli:null, fila:null, ocupado:false };
+
+function carregarNiimbot(){
+  if(window.niimbluelib) return Promise.resolve(window.niimbluelib);
+  return new Promise((ok, erro) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/niimbluelib-0.47.1.min.js';
+    s.onload = () => window.niimbluelib ? ok(window.niimbluelib) : erro(new Error('módulo da Niimbot inválido'));
+    s.onerror = () => { s.remove(); erro(new Error('não foi possível carregar o módulo da Niimbot (verifique a internet)')); };
+    document.head.appendChild(s);
+  });
+}
+
+/* Mesma etiqueta do 5×3 cm (OS, par, tarefas, prazo), desenhada em pixels. */
+function canvasEtiqueta(o, i){
+  const ps = o.pares || [], p = ps[i] || { fazer:'' };
+  const c = document.createElement('canvas'); c.width = NB_W; c.height = NB_H;
+  const g = c.getContext('2d'), F = 'Arial, Helvetica, sans-serif', L = 10, R = NB_W - 10;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, NB_W, NB_H); g.fillStyle = '#000'; g.strokeStyle = '#000';
+  // topo: nº da OS e "1/3"
+  g.font = `700 18px ${F}`; g.fillText('OS', L, 48);
+  g.font = `900 46px ${F}`; g.fillText(String(o.numero), L + 30, 48);
+  if(ps.length > 1){
+    const t = `${i+1}/${ps.length}`; g.font = `900 26px ${F}`;
+    const w = g.measureText(t).width + 12; g.lineWidth = 3;
+    g.strokeRect(R - w, 16, w, 32); g.fillText(t, R - w + 6, 41);
+  }
+  g.fillRect(L, 56, R - L, 3);
+  // rodapé: prazo
+  g.fillRect(L, NB_H - 44, R - L, 3);
+  g.font = `900 28px ${F}`; g.fillText('Prazo: ' + (o.prazo ? fd(o.prazo).slice(0,5) : '—'), L, NB_H - 14);
+  // meio: tarefas em maiúsculas, a letra diminui até caber
+  const topo = 64, alt = NB_H - 48 - topo, larg = R - L;
+  const tarefas = (p.fazer||'').split(/\n+/).map(x => x.trim().toUpperCase()).filter(Boolean);
+  if(!tarefas.length) tarefas.push('—');
+  const quebrar = (txt, fs) => {                   // quebra em linhas que cabem na largura
+    g.font = `800 ${fs}px ${F}`;
+    const out = []; let lin = '';
+    txt.split(/\s+/).forEach(pal => {
+      while(g.measureText(pal).width > larg){      // palavra maior que a linha: corta
+        let k = pal.length; while(k > 1 && g.measureText(pal.slice(0, k)).width > larg) k--;
+        if(lin){ out.push(lin); lin = ''; }
+        out.push(pal.slice(0, k)); pal = pal.slice(k);
+      }
+      const t = lin ? lin + ' ' + pal : pal;
+      if(g.measureText(t).width <= larg) lin = t; else { out.push(lin); lin = pal; }
+    });
+    if(lin) out.push(lin);
+    return out;
+  };
+  const montar = (fs, junto) => (junto ? [tarefas.join(' · ')] : tarefas).flatMap(t => quebrar(t, fs));
+  let fs = 34, junto = false, linhas = montar(fs, junto);
+  const cabeAgora = () => linhas.length * Math.round(fs * 1.12) <= alt;
+  while(!cabeAgora() && fs > 20){ fs--; linhas = montar(fs, junto); }               // 1º: uma tarefa por linha
+  if(!cabeAgora()){ junto = true; fs = 26; linhas = montar(fs, junto);              // 2º: tarefas lado a lado
+    while(!cabeAgora() && fs > 16){ fs--; linhas = montar(fs, junto); } }
+  const cabe = cabeAgora(), lh = Math.round(fs * 1.12);
+  g.save(); g.beginPath(); g.rect(0, topo, NB_W, alt); g.clip();
+  g.font = `800 ${fs}px ${F}`;
+  linhas.forEach((t, k) => g.fillText(t, L, topo + fs * .9 + k * lh));
+  g.restore();
+  // preto e branco puro (a impressora só entende pontos pretos ou brancos)
+  const im = g.getImageData(0, 0, NB_W, NB_H), d = im.data;
+  for(let k = 0; k < d.length; k += 4){
+    const v = (d[k]*.3 + d[k+1]*.59 + d[k+2]*.11) < 150 ? 0 : 255;
+    d[k] = d[k+1] = d[k+2] = v; d[k+3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  return { canvas:c, cabe };
+}
+
+function niimbotEtiqueta(id, idx, idxs, depois){
+  const o = get(id); if(!o) return;
+  const rs = idxs.map(i => canvasEtiqueta(o, i));
+  NB.fila = { id, idx, rs, depois };
+  const ligada = NB.cli && NB.cli.isConnected();
+  modal(`
+  <h3>🏷️ ${rs.length > 1 ? rs.length + ' etiquetas' : 'Etiqueta'} da OS #${h(o.numero)}</h3>
+  <div class="hint">Impressora Niimbot B1 · etiqueta 5×3 cm</div>
+  <div id="nbprev" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0"></div>
+  ${rs.some(r => !r.cabe) ? '<div class="hint" style="color:var(--er);margin-bottom:6px">O texto de alguma etiqueta não coube inteiro e vai sair cortado.</div>' : ''}
+  <div id="nbst" class="hint" style="min-height:1.4em;margin-bottom:8px">${ligada ? 'Impressora conectada.' : 'Ligue a impressora e o Bluetooth do celular. Na primeira vez o Chrome pede para escolher a impressora na lista.'}</div>
+  <button class="b" id="nbbt" onclick="niimbotImprimir()">🖨️ Imprimir na Niimbot</button>
+  <button class="b sec" onclick="niimbotNavegador()">Imprimir pelo navegador</button>
+  <button class="b sec" onclick="niimbotFechar()">Fechar</button>`);
+  const pv = document.getElementById('nbprev');
+  rs.forEach(r => { r.canvas.style.cssText = 'width:160px;height:auto;border:1px solid #ccc;border-radius:4px;background:#fff'; pv.appendChild(r.canvas); });
+}
+function niimbotFechar(){
+  if(NB.ocupado) return;
+  const f = NB.fila; NB.fila = null; fechar();
+  if(f && typeof f.depois === 'function') f.depois();
+}
+function niimbotNavegador(){
+  if(NB.ocupado) return;
+  const f = NB.fila; NB.fila = null; if(!f) return;
+  imprimirEtiqueta(f.id, f.idx, f.depois, true);
+}
+async function niimbotImprimir(){
+  const f = NB.fila; if(!f || NB.ocupado) return;
+  const st = document.getElementById('nbst'), bt = document.getElementById('nbbt');
+  const msg = t => { if(st) st.textContent = t; };
+  if(!navigator.bluetooth) return msg('Este navegador não deixa sites usarem o Bluetooth. Use o Google Chrome no Android (no iPhone não funciona).');
+  NB.ocupado = true; if(bt) bt.disabled = true;
+  let task = null, ok = false;
+  try{
+    msg('Conectando à impressora…');
+    const nb = await carregarNiimbot();
+    if(!NB.cli) NB.cli = new nb.NiimbotBluetoothClient();
+    if(!NB.cli.isConnected()) await NB.cli.connect();
+    task = NB.cli.protocol.newPrintTask(NB.cli.getPrintTaskType() || 'B1',
+      { totalPages:f.rs.length, density:3, labelType:nb.LabelType.WithGaps });
+    await task.printInit();
+    for(let k = 0; k < f.rs.length; k++){
+      msg(f.rs.length > 1 ? `Imprimindo etiqueta ${k+1} de ${f.rs.length}…` : 'Imprimindo…');
+      await task.printPage(nb.ImageEncoder.encodeCanvas(f.rs[k].canvas, nb.PageColorType.SingleColor, 'top'), 1);
+      await task.waitForPageFinished();
+    }
+    await task.waitForFinished();
+    ok = true;
+  }catch(e){
+    const t = String((e && e.message) || e);
+    msg(/cancel|chosen|selected/i.test(t) ? 'Nenhuma impressora escolhida. Toque em "Imprimir na Niimbot" de novo e escolha a B1 na lista.'
+                                         : 'Não consegui imprimir: ' + t + '. Confira se a impressora está ligada e com etiqueta, e tente de novo.');
+  }finally{
+    if(task) try{ await task.printEnd(); }catch(_){}
+    NB.ocupado = false; if(bt) bt.disabled = false;
+  }
+  if(ok && NB.fila === f){ msg('Pronto!'); setTimeout(() => { if(NB.fila === f) niimbotFechar(); }, 700); }
 }
 
 /* ============ 14B. PAGAMENTO NA ABERTURA DA OS (apoio do formulário) ===== */
