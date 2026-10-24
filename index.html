@@ -195,6 +195,8 @@ header .b.sm{min-height:36px;padding:7px 14px;font-size:13px;box-shadow:none}
 .seg::-webkit-scrollbar{display:none}
 .seg button{white-space:nowrap;margin-top:0!important;flex:none}
 .seg .b.sm{border-radius:999px}
+/* Pares da OS: quebra em linhas para o "+ Par" nunca sair da tela (sem limite de pares) */
+.seg.pares-seg{flex-wrap:wrap;overflow-x:visible}
 .seg .b.sm:not(.sec):not(.ok):not(.wa):not(.er){background:var(--dk);border-color:var(--dk)}
 
 /* campos */
@@ -1176,7 +1178,7 @@ function renderPares(){
   const box = document.getElementById('pares'); if(!box) return;
   const p = PARES[PAR_ATIVO], n = PARES.length;
   box.innerHTML = `
-  <div class="seg">
+  <div class="seg pares-seg">
     ${PARES.map((x,i) => `<button type="button" class="b sm ${i===PAR_ATIVO?'':'sec'}" onclick="parSel(${i})">Par ${i+1}</button>`).join('')}
     <button type="button" class="b sm ok" onclick="parAdd()">+ Par</button>
   </div>
