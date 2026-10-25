@@ -6,6 +6,20 @@
 <meta name="theme-color" content="#1b1918">
 <title>Sapataria – Controle de Produção</title>
 <script src="config.js"></script>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<script>
+/* App instalável: manifest e ícone da loja (cada cliente tem os seus, veja clientes/). */
+(function(){
+  var C = window.SAPATARIA || {}, pasta = '/' + (C.pastaApp || '');
+  document.write('<link rel="manifest" href="' + pasta + 'manifest.webmanifest">' +
+    '<link rel="apple-touch-icon" href="' + pasta + 'icons/apple-touch-icon.png">' +
+    '<link rel="icon" type="image/png" sizes="192x192" href="' + pasta + 'icons/icon-192.png">' +
+    '<meta name="apple-mobile-web-app-title" content="' + (C.loja || 'Sapataria').replace(/^Sapataria /, '') + '">');
+  if ('serviceWorker' in navigator) addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
