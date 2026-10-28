@@ -599,7 +599,7 @@ function renderUnbar(){
 const itemMsg = o => (o.legado && o.item) ? o.item : 'conserto';   // texto usado nas mensagens de WhatsApp
 const parTxt  = p => h(p.fazer||'').replace(/\n/g, ' + ');
 const parLista = o => { const ps = o.pares||[];
-  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''}${p.entregue && ps.length>1 ? ` <span class="tag cb">✅ retirado ${new Date(p.entregue).toLocaleDateString('pt-BR')}</span>`
+  return ps.map((p,i) => `${ps.length>1 ? `<b>Item ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''}${p.entregue && ps.length>1 ? ` <span class="tag cb">✅ retirado ${new Date(p.entregue).toLocaleDateString('pt-BR')}</span>`
     : p.pronto && ps.length>1 && o.status === 'Em fila' ? ` <span class="tag ok">✅ pronto ${new Date(p.pronto).toLocaleDateString('pt-BR')}</span>` : ''}`).join('<br>'); };
 // retirada por par: p.entregue guarda a data/hora em que aquele par saiu da loja
 const paresRetirados = o => (o.pares||[]).filter(p => p.entregue).length;
@@ -646,7 +646,7 @@ function montar(o, tipo){
   const semValor = !(+o.valor > 0);
   const ps = o.pares || [];
   const vals = {
-    servicos: ps.map((p,i) => (ps.length > 1 ? `• Par ${i+1}: ` : '• ') + String(p.fazer||'').replace(/\s*\n\s*/g, ' + ')).join('\n'),
+    servicos: ps.map((p,i) => (ps.length > 1 ? `• Item ${i+1}: ` : '• ') + String(p.fazer||'').replace(/\s*\n\s*/g, ' + ')).join('\n'),
     prazo: o.prazo ? fd(o.prazo) : 'a combinar',
     nome: (o.cliente||'').trim().split(/\s+/)[0] || '',
     item:itemMsg(o), numero:o.numero,
@@ -713,9 +713,9 @@ function prontoPares(id){
   <h3>Pronto – OS #${o.numero}</h3>
   <div class="hint">Desmarque os pares que ainda não ficaram prontos.</div>
   ${ps.map((p,i) => p.pronto
-    ? `<div class="hint" style="padding:6px 0">✅ <b>Par ${i+1}</b> – ${parTxt(p)} · pronto desde ${new Date(p.pronto).toLocaleDateString('pt-BR')}</div>`
+    ? `<div class="hint" style="padding:6px 0">✅ <b>Item ${i+1}</b> – ${parTxt(p)} · pronto desde ${new Date(p.pronto).toLocaleDateString('pt-BR')}</div>`
     : `<label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:600;cursor:pointer">
-        <input type="checkbox" class="pr-par" value="${i}" checked style="width:auto;margin:0"> Par ${i+1} – ${parTxt(p)}</label>`).join('')}
+        <input type="checkbox" class="pr-par" value="${i}" checked style="width:auto;margin:0"> Item ${i+1} – ${parTxt(p)}</label>`).join('')}
   <div class="sep"></div>
   <button class="b ok" onclick="confirmarPronto(${o.id})">Confirmar</button>
   <button class="b sec" onclick="fechar()">Voltar</button>`);
@@ -727,7 +727,7 @@ function confirmarPronto(id){
   if(!marc.length) return alert('Marque pelo menos um par.');
   const quando = agora();
   marc.forEach(i => { ps[i].pronto = quando; });
-  const quais = marc.map(i => 'par ' + (i+1)).join(', ');
+  const quais = marc.map(i => 'item ' + (i+1)).join(', ');
   if(ps.every(p => p.pronto)){
     o.historico.push({ data:quando, de:o.status, para:'Pronto', nota: marc.length < ps.length ? `Ficou pronto o ${quais}` : '' });
     o.status = 'Pronto'; save(); render();
@@ -758,11 +758,11 @@ function retirada(id, parcial){
   <div class="hint">Confira os pares marcados: ${o.status === 'Em fila' ? 'só os prontos podem sair.' : 'os desmarcados ficam na loja como prontos.'}</div>`
   : `<div class="hint">${o.status === 'Em fila' ? 'Marque os pares prontos que o cliente está levando.' : 'Desmarque os pares que vão ficar na loja.'}</div>`}
   ${ps.map((p,i) => p.entregue
-    ? `<div class="hint" style="padding:6px 0">✅ <b>Par ${i+1}</b> – ${parTxt(p)} · já retirado em ${new Date(p.entregue).toLocaleDateString('pt-BR')}</div>`
+    ? `<div class="hint" style="padding:6px 0">✅ <b>Item ${i+1}</b> – ${parTxt(p)} · já retirado em ${new Date(p.entregue).toLocaleDateString('pt-BR')}</div>`
     : o.status === 'Em fila' && !p.pronto
-    ? `<div class="hint" style="padding:6px 0">⏳ <b>Par ${i+1}</b> – ${parTxt(p)} · ainda em serviço</div>`
+    ? `<div class="hint" style="padding:6px 0">⏳ <b>Item ${i+1}</b> – ${parTxt(p)} · ainda em serviço</div>`
     : `<label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:600;cursor:pointer">
-        <input type="checkbox" class="ret-par" value="${i}" ${++n <= levar ? 'checked' : ''} onchange="retQtdSync()" style="width:auto;margin:0"> Par ${i+1} – ${parTxt(p)}</label>`).join('')}
+        <input type="checkbox" class="ret-par" value="${i}" ${++n <= levar ? 'checked' : ''} onchange="retQtdSync()" style="width:auto;margin:0"> Item ${i+1} – ${parTxt(p)}</label>`).join('')}
   ${saldo(o) > 0 ? `<div class="hint" style="margin-top:6px">Saldo em aberto: <b>${R(saldo(o))}</b></div>` : ''}
   <div class="sep"></div>
   <button class="b ok" onclick="confirmarRetirada(${o.id})">Confirmar retirada</button>
@@ -786,7 +786,7 @@ function confirmarRetirada(id){
   if(tudo && saldo(o) > 0 && !confirm(`Ainda há saldo de ${R(saldo(o))}. Entregar mesmo assim?`)) return;
   const quando = agora();
   marc.forEach(i => { ps[i].entregue = quando; });
-  const quais = marc.map(i => 'par ' + (i+1)).join(', ');
+  const quais = marc.map(i => 'item ' + (i+1)).join(', ');
   if(tudo){
     o.historico.push({ data:quando, de:o.status, para:'Entregue', nota: marc.length < ps.length ? `Retirada do ${quais}` : '' });
     o.status = 'Entregue';
@@ -1081,7 +1081,7 @@ function detalhe(id){
     : '<span class="tag am">Em fila</span>';
   const pares = ps.map((p,i) => `
     <div class="dt-par">
-      <div class="dt-par-top"><b>${ps.length > 1 ? 'Par ' + (i+1) : 'Serviço'}</b>${ps.length > 1 ? stPar(p) : ''}
+      <div class="dt-par-top"><b>${ps.length > 1 ? 'Item ' + (i+1) : 'Serviço'}</b>${ps.length > 1 ? stPar(p) : ''}
         ${+p.valor > 0 ? `<span class="dt-par-v">${R(p.valor)}</span>` : ''}</div>
       <ul>${String(p.fazer||'').split(/\n+/).map(x => x.trim()).filter(Boolean).map(x => `<li>${h(x)}</li>`).join('') || '<li>—</li>'}</ul>
     </div>`).join('');
@@ -1115,7 +1115,7 @@ function detalhe(id){
   </div>
   ${(o.avisos||[]).length ? `<div class="hint" style="margin-top:6px">${o.avisos.map(a => `📲 Avisado (${h(MSG_NOME[a.tipo] || a.tipo)}) em ${fdt(a.data)}`).join('<br>')}</div>` : ''}
 
-  <h4>O que fazer${ps.length > 1 ? ` · ${ps.length} pares` : ''}</h4>
+  <h4>O que fazer${ps.length > 1 ? ` · ${ps.length} itens` : ''}</h4>
   ${pares}
   ${o.obs ? `<div class="dt-obs"><b>Observação:</b> ${h(o.obs)}</div>` : ''}
 
@@ -1158,7 +1158,7 @@ function detalhe(id){
     <button class="b sec" onclick="imprimir(${o.id})">🖨️ Imprimir (2 vias)</button>
     <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${nEtq > 1 ? 'Etiquetas (' + nEtq + ')' : 'Etiqueta ' + tamEtq(o).txt}</button>
   </div>
-  ${nEtq > 1 ? `<div>${ps.map((_,i) => `<button class="b sec sm" onclick="imprimirEtiqueta(${o.id},${i})">🏷️ Par ${i+1}</button>`).join('')}</div>` : ''}
+  ${nEtq > 1 ? `<div>${ps.map((_,i) => `<button class="b sec sm" onclick="imprimirEtiqueta(${o.id},${i})">🏷️ Item ${i+1}</button>`).join('')}</div>` : ''}
 
   <details class="dt-sec">
     <summary>🕓 Histórico (${(o.historico||[]).length})</summary>
@@ -1215,15 +1215,15 @@ function renderPares(){
   const p = PARES[PAR_ATIVO], n = PARES.length;
   box.innerHTML = `
   <div class="seg pares-seg">
-    ${PARES.map((x,i) => `<button type="button" class="b sm ${i===PAR_ATIVO?'':'sec'}" onclick="parSel(${i})">Par ${i+1}</button>`).join('')}
-    <button type="button" class="b sm ok" onclick="parAdd()">+ Par</button>
+    ${PARES.map((x,i) => `<button type="button" class="b sm ${i===PAR_ATIVO?'':'sec'}" onclick="parSel(${i})">Item ${i+1}</button>`).join('')}
+    <button type="button" class="b sm ok" onclick="parAdd()">+ Item</button>
   </div>
-  <label style="margin-top:8px">O que fazer${n>1 ? ` no par ${PAR_ATIVO+1} de ${n}` : ''} <span style="font-weight:400">(uma tarefa por linha — sai na etiqueta)</span></label>
+  <label style="margin-top:8px">O que fazer${n>1 ? ` no item ${PAR_ATIVO+1} de ${n}` : ''} <span style="font-weight:400">(uma tarefa por linha — sai na etiqueta)</span></label>
   <textarea id="fz" placeholder="ex.: trocar meia-sola&#10;costurar o bico" oninput="PARES[PAR_ATIVO].fazer=this.value">${h(p.fazer)}</textarea>
-  <label>Valor${n>1 ? ` do par ${PAR_ATIVO+1}` : ' do par'} (R$)</label>
+  <label>Valor${n>1 ? ` do item ${PAR_ATIVO+1}` : ''} (R$)</label>
   <input id="fpv" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" value="${p.valor === '' || p.valor == null ? '' : p.valor}" oninput="PARES[PAR_ATIVO].valor=this.value;somaPares()">
   <div class="hint" id="fps"></div>
-  ${n>1 ? `<button type="button" class="b er" style="width:100%;margin:3px 0 9px" onclick="parDel()">Remover este par</button>` : ''}`;
+  ${n>1 ? `<button type="button" class="b er" style="width:100%;margin:3px 0 9px" onclick="parDel()">Remover este item</button>` : ''}`;
 }
 /* Soma os valores dos pares no Valor total da OS. Se nenhum par tem valor
    (ex.: OS antiga), o total fica como estava e pode ser digitado à mão. */
@@ -1231,7 +1231,7 @@ function somaPares(){
   const tot = PARES.reduce((t,p) => t + (+p.valor > 0 ? +p.valor : 0), 0);
   const fv = document.getElementById('fv'), fps = document.getElementById('fps');
   if(fps) fps.innerHTML = tot > 0 && PARES.length > 1
-    ? PARES.map((p,i) => `Par ${i+1}: ${R(+p.valor||0)}`).join(' + ') + ` = <b>${R(tot)}</b>` : '';
+    ? PARES.map((p,i) => `Item ${i+1}: ${R(+p.valor||0)}`).join(' + ') + ` = <b>${R(tot)}</b>` : '';
   if(!fv) return;
   if(tot > 0){ fv.value = +tot.toFixed(2); fv.readOnly = true; fv.title = 'Soma automática dos valores dos pares'; }
   else { fv.readOnly = false; fv.title = ''; }
@@ -1242,7 +1242,7 @@ function parAdd(){ PARES.push({ fazer:'', horas:+C().tempoPar || 1, valor:'' });
   const t = document.getElementById('fz'); if(t) t.focus(); }
 function parDel(){
   if(PARES.length < 2) return;
-  if((PARES[PAR_ATIVO].fazer||'').trim() && !confirm(`Remover o par ${PAR_ATIVO+1}?`)) return;
+  if((PARES[PAR_ATIVO].fazer||'').trim() && !confirm(`Remover o item ${PAR_ATIVO+1}?`)) return;
   PARES.splice(PAR_ATIVO, 1); PAR_ATIVO = Math.max(0, PAR_ATIVO - 1); renderPares(); somaPares();
 }
 /* id: edita a OS. Sem id: OS nova. orcId: OS nova vinda de um orçamento aprovado. */
@@ -1364,7 +1364,7 @@ function salvarOS(id){
   const un  = (document.querySelector('input[name=fu]:checked') || {}).value || uDef();
 
   if(!cli) return alert('Preencha o nome do cliente.');
-  if(vazio >= 0){ PAR_ATIVO = vazio; renderPares(); return alert(`Descreva o que fazer no par ${vazio+1}.`); }
+  if(vazio >= 0){ PAR_ATIVO = vazio; renderPares(); return alert(`Descreva o que fazer no item ${vazio+1}.`); }
   if(tel.length < 10 || tel.length > 11) return alert('Telefone inválido. Use DDD + número, ex.: (11) 99999-9999.');
   if(!(n > 0)) return alert('Informe um número de OS válido.');
   if(S.os.some(x => x.numero === n && x.id !== id && x.unidade === un)) return alert('Já existe uma OS com esse número nesta unidade.');
@@ -1465,7 +1465,7 @@ function imprimir(id){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><img src="${LOGO}" style="height:50px;background:#1e1c1b;border-radius:6px"><h2 style="margin:0">${h(C().loja)} · ${h(unid(o).curto)} — ${t}</h2></div>
       <h3>Ordem de Serviço nº ${o.numero}</h3>
       ${linha('Cliente', o.cliente)}${linha('Telefone', o.telefone)}
-      ${(o.pares||[]).map((p,i) => linha((o.pares.length>1 ? 'Par ' + (i+1) + ' – ' : '') + 'O que fazer', (p.fazer||'').replace(/\n/g, ' + ') + (!prod && +p.valor > 0 ? ' — ' + R(p.valor) : ''))).join('')}
+      ${(o.pares||[]).map((p,i) => linha((o.pares.length>1 ? 'Item ' + (i+1) + ' – ' : '') + 'O que fazer', (p.fazer||'').replace(/\n/g, ' + ') + (!prod && +p.valor > 0 ? ' — ' + R(p.valor) : ''))).join('')}
       ${linha('Entrada', fd(o.entrada))}${linha('Prazo prometido', fd(o.prazo))}
       ${linha('Prioridade', o.prioridade.toUpperCase())}
       ${prod
@@ -1920,7 +1920,7 @@ const getOrc = id => (S.orcamentos || []).find(x => x.id === id);
 const orcVencido = x => x.status === 'aberto' && x.validade && x.validade < hoje();
 const proxOrc = () => (S.orcamentos || []).reduce((t,x) => Math.max(t, +x.numero || 0), 0) + 1;
 const orcLista = x => { const ps = x.pares || [];
-  return ps.map((p,i) => `${ps.length>1 ? `<b>Par ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''}`).join('<br>'); };
+  return ps.map((p,i) => `${ps.length>1 ? `<b>Item ${i+1}:</b> ` : ''}${parTxt(p)}${+p.valor > 0 ? ` · <b>${R(p.valor)}</b>` : ''}`).join('<br>'); };
 
 function segOrc(f){
   const l = orcU();
@@ -2013,7 +2013,7 @@ function salvarOrc(id, enviar){
   const vazio = pares.findIndex(p => !p.fazer);
   if(!cli) return alert('Preencha o nome do cliente.');
   if(tel.length < 10 || tel.length > 11) return alert('Telefone inválido. Use DDD + número, ex.: (11) 99999-9999.');
-  if(vazio >= 0){ PAR_ATIVO = vazio; renderPares(); return alert(`Descreva o que fazer no par ${vazio+1}.`); }
+  if(vazio >= 0){ PAR_ATIVO = vazio; renderPares(); return alert(`Descreva o que fazer no item ${vazio+1}.`); }
   const dados = { cliente:cli, telefone:document.getElementById('ft').value.trim(),
     data:document.getElementById('od').value || hoje(), validade:document.getElementById('ov').value || '',
     unidade:document.getElementById('ou').value, pares, valor:+document.getElementById('fv').value || 0,
@@ -2032,7 +2032,7 @@ function salvarOrc(id, enviar){
 function montarOrc(x){
   const ps = x.pares || [], u = UN(x.unidade);
   const v = { nome:(x.cliente||'').trim().split(/\s+/)[0] || '', numero:x.numero,
-    servicos: ps.map((p,i) => (ps.length > 1 ? `• Par ${i+1}: ` : '• ') + String(p.fazer||'').replace(/\s*\n\s*/g, ' + ')
+    servicos: ps.map((p,i) => (ps.length > 1 ? `• Item ${i+1}: ` : '• ') + String(p.fazer||'').replace(/\s*\n\s*/g, ' + ')
       + (ps.length > 1 && +p.valor > 0 ? ` — ${R(p.valor)}` : '')).join('\n'),
     valor: +x.valor > 0 ? R(x.valor) : 'a combinar', validade: x.validade ? fd(x.validade) : 'a combinar',
     loja:C().loja + ' – ' + u.curto, unidade:u.curto, horario:u.horario };
