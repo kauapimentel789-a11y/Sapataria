@@ -456,7 +456,7 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
 .etq.e30 .etq-bot{font-size:8pt;padding-top:.5mm;line-height:1.15}
 /* Etiqueta 5×3 cm na vertical impressa pelo navegador (Sam's): é o mesmo desenho da Niimbot, como imagem */
 .etq.eimg{height:30mm;padding:0;display:block}
-.etq.eimg img{display:block;width:48mm;height:30mm;margin-left:1mm}
+.etq.eimg img{display:block;width:50mm;height:30mm}
 </style>
 </head>
 <body>
@@ -1544,7 +1544,7 @@ function imprimirEtiqueta(id, idx, depois, navegador, tam){
   const vert = tam === 'v';                              // 5×3 cm na vertical (desenho da Niimbot)
   if((ETQ_NIIMBOT[o.unidade] || vert) && !navegador) return niimbotEtiqueta(id, idx, idxs, depois, tam);
   const T = vert ? ETQ_V : tamEtq(o);
-  const rs = vert ? idxs.map(i => { const r = canvasEtiqueta(o, i);
+  const rs = vert ? idxs.map(i => { const r = canvasEtiqueta(o, i, true);
       return { cabe:r.cabe, html:`<div class="etq eimg"><img src="${r.canvas.toDataURL('image/png')}" alt=""></div>` }; })
     : idxs.map(i => etiquetaPronta(o, i));
   if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos '+T.txt+' e será cortado. Imprimir mesmo assim?')) return;
@@ -1610,13 +1610,15 @@ function carregarNiimbot(){
 }
 
 /* Mesma etiqueta do 5×3 cm (OS, par, tarefas, prazo), desenhada em pixels. */
-function canvasEtiqueta(o, i){
+/* pag = true: impressão pelo navegador, imagem do tamanho exato da etiqueta (50×30 mm), texto centralizado nela. */
+function canvasEtiqueta(o, i, pag){
   const ps = o.pares || [], p = ps[i] || { fazer:'' };
-  const Q = NB_H, A = NB_R - NB_L;                 // etiqueta em pé: 30 mm de largura × área útil de altura
+  const W = pag ? 400 : NB_W, eL = pag ? 12 : NB_L, eR = pag ? 388 : NB_R;   // pelo navegador: 1,5 mm de folga em cada ponta
+  const Q = NB_H, A = eR - eL;                     // etiqueta em pé: 30 mm de largura × área útil de altura
   const q = document.createElement('canvas'); q.width = Q; q.height = A;
-  const g = q.getContext('2d'), F = 'Arial, Helvetica, sans-serif', L = 8, R = Q - 8;   // 1 mm de folga: girado, a largura vira a altura da etiqueta
+  const cen = !!ETQ_CENTRO[o.unidade];             // Sam's: tudo centralizado e dentro de 2,7 cm (1,5 mm de folga de cada lado)
+  const g = q.getContext('2d'), F = 'Arial, Helvetica, sans-serif', L = cen ? 12 : 8, R = Q - L;   // girado, a largura vira a altura da etiqueta
   g.fillStyle = '#fff'; g.fillRect(0, 0, Q, A); g.fillStyle = '#000'; g.strokeStyle = '#000';
-  const cen = !!ETQ_CENTRO[o.unidade];           // Sam's: tudo centralizado na largura da etiqueta
   // topo: nº da OS e "1/3"
   if(cen){
     const t = ps.length > 1 ? `${i+1}/${ps.length}` : '';
@@ -1681,12 +1683,12 @@ function canvasEtiqueta(o, i){
   g.textAlign = 'right'; g.fillText(siglaEtq(o), R, py + 26); g.textAlign = 'left';
   }
   // etiqueta: o desenho em pé girado 90° no sentido horário, ocupando a área útil (o topo do texto fica em NB_R)
-  const c = document.createElement('canvas'); c.width = NB_W; c.height = NB_H;
+  const c = document.createElement('canvas'); c.width = W; c.height = NB_H;
   const e = c.getContext('2d');
-  e.fillStyle = '#fff'; e.fillRect(0, 0, NB_W, NB_H);
-  e.save(); e.translate(NB_R, 0); e.rotate(Math.PI / 2); e.drawImage(q, 0, 0); e.restore();
+  e.fillStyle = '#fff'; e.fillRect(0, 0, W, NB_H);
+  e.save(); e.translate(eR, 0); e.rotate(Math.PI / 2); e.drawImage(q, 0, 0); e.restore();
   // preto e branco puro (a impressora só entende pontos pretos ou brancos)
-  const im = e.getImageData(0, 0, NB_W, NB_H), d = im.data;
+  const im = e.getImageData(0, 0, W, NB_H), d = im.data;
   for(let k = 0; k < d.length; k += 4){
     const v = (d[k]*.3 + d[k+1]*.59 + d[k+2]*.11) < 150 ? 0 : 255;
     d[k] = d[k+1] = d[k+2] = v; d[k+3] = 255;
