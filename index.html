@@ -454,6 +454,9 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
 .etq.e30 .etq-par{font-size:9pt}
 .etq.e30 .etq-mid{padding-top:.6mm}
 .etq.e30 .etq-bot{font-size:8pt;padding-top:.5mm;line-height:1.15}
+/* Etiqueta 5×3 cm na vertical impressa pelo navegador (Sam's): é o mesmo desenho da Niimbot, como imagem */
+.etq.eimg{height:30mm;padding:0;display:block}
+.etq.eimg img{display:block;width:48mm;height:30mm;margin-left:1mm}
 </style>
 </head>
 <body>
@@ -1156,7 +1159,7 @@ function detalhe(id){
     <button class="b wa" onclick="avisar(${o.id},'recebido');detalhe(${o.id})">📲 ${(o.avisos||[]).some(a => a.tipo === 'recebido') ? 'Reenviar' : 'Enviar'} comprovante</button>
     <button class="b sec" onclick="salvarContato(${o.id})">👤 Salvar contato</button>
     <button class="b sec" onclick="imprimir(${o.id})">🖨️ Imprimir (2 vias)</button>
-    <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${nEtq > 1 ? 'Etiquetas (' + nEtq + ')' : 'Etiqueta ' + tamEtq(o).txt}</button>
+    <button class="b sec" onclick="imprimirEtiqueta(${o.id})">🏷️ ${nEtq > 1 ? 'Etiquetas (' + nEtq + ')' : 'Etiqueta' + (ETQ_ESCOLHA[o.unidade] ? '' : ' ' + tamEtq(o).txt)}</button>
   </div>
   ${nEtq > 1 ? `<div>${ps.map((_,i) => `<button class="b sec sm" onclick="imprimirEtiqueta(${o.id},${i})">🏷️ Item ${i+1}</button>`).join('')}</div>` : ''}
 
@@ -1488,6 +1491,11 @@ function imprimir(id){
    Tamanho por unidade: o Aventureiro tem impressora de 5×3 cm; as demais, 5×4 cm. */
 const ETQ_TAM = { aventureiro: { h:30, txt:'5×3 cm', cls:' e30' } };
 const tamEtq  = o => ETQ_TAM[o.unidade] || { h:40, txt:'5×4 cm', cls:'' };
+/* Unidades que escolhem o tamanho na hora de imprimir: 5×4 cm (atual) ou 5×3 cm na vertical,
+   igual à do Aventureiro. O Sam's está trocando para a 5×3; quando a etiqueta nova chegar,
+   é só tirar o sams daqui e colocar em ETQ_TAM / ETQ_NIIMBOT. */
+const ETQ_ESCOLHA = { sams: true };
+const ETQ_V = { h:30, txt:'5×3 cm', cls:' eimg' };
 /* Sigla da unidade no canto da etiqueta, para saber de qual loja é o calçado. */
 const ETQ_SIGLA = { sams:"Sam's", aventureiro:'Avt' };
 const siglaEtq = o => ETQ_SIGLA[o.unidade] || unid(o).curto || '';
@@ -1527,23 +1535,53 @@ function limparEtiqueta(){
 /* Sem idx: imprime uma etiqueta para CADA par da OS. Com idx: só aquele par.
    Aventureiro usa a Niimbot B1 (Bluetooth): vai para a tela da Niimbot, a não ser
    que peçam a impressão pelo navegador (navegador = true). */
-function imprimirEtiqueta(id, idx, depois, navegador){
+function imprimirEtiqueta(id, idx, depois, navegador, tam){
   const o = get(id); if(!o) return;
   const idxs = idx == null ? (o.pares||[]).map((_, i) => i) : [idx];
   if(!idxs.length) return alert('Esta OS não tem nenhum par cadastrado.');
-  if(ETQ_NIIMBOT[o.unidade] && !navegador) return niimbotEtiqueta(id, idx, idxs, depois);
-  const rs = idxs.map(i => etiquetaPronta(o, i));
-  if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos '+tamEtq(o).txt+' e será cortado. Imprimir mesmo assim?')) return;
+  if(ETQ_ESCOLHA[o.unidade] && !tam) return escolherEtiqueta(id, idx, depois);
+  const vert = tam === 'v';                              // 5×3 cm na vertical (desenho da Niimbot)
+  if((ETQ_NIIMBOT[o.unidade] || vert) && !navegador) return niimbotEtiqueta(id, idx, idxs, depois, tam);
+  const T = vert ? ETQ_V : tamEtq(o);
+  const rs = vert ? idxs.map(i => { const r = canvasEtiqueta(o, i);
+      return { cabe:r.cabe, html:`<div class="etq eimg"><img src="${r.canvas.toDataURL('image/png')}" alt=""></div>` }; })
+    : idxs.map(i => etiquetaPronta(o, i));
+  if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos '+T.txt+' e será cortado. Imprimir mesmo assim?')) return;
   document.getElementById('print').innerHTML = rs.map(r => r.html).join('');
   const st = document.createElement('style');           // tamanho de página só durante a etiqueta
   st.id = 'etq-page';
-  st.textContent = '@page{size:50mm '+tamEtq(o).h+'mm;margin:0}';
+  st.textContent = '@page{size:50mm '+T.h+'mm;margin:0}';
   document.head.appendChild(st);
   document.body.classList.add('etq-mode');
   fechar();
   window.addEventListener('afterprint', limparEtiqueta, { once:true });
   if(typeof depois === 'function') window.addEventListener('afterprint', depois, { once:true });
   setTimeout(() => window.print(), 60);
+}
+
+/* Sam's: pergunta qual etiqueta usar (a 5×4 atual ou a 5×3 na vertical). Lembra a última escolha neste aparelho. */
+let ETQ_ESC = null;
+function escolherEtiqueta(id, idx, depois){
+  const o = get(id); if(!o) return;
+  ETQ_ESC = { id, idx, depois };
+  let ult = 'v'; try{ ult = localStorage.getItem('sap_etq_tam') || 'v'; }catch(_){}
+  const bt = (t, txt, sub) => `<button class="b${ult === t ? '' : ' sec'}" style="display:block;width:100%;margin:0 0 8px;text-align:left" onclick="etqEscolhido('${t}')">${txt}<br><small style="font-weight:400">${sub}</small></button>`;
+  modal(`
+  <h3>🏷️ Qual etiqueta? · OS #${h(o.numero)}</h3>
+  <div class="hint" style="margin-bottom:10px">Escolha o tamanho da etiqueta que está na impressora.</div>
+  ${bt('v', '5×3 cm · na vertical', "Igual à do Aventureiro (texto em pé)")}
+  ${bt('h', '5×4 cm', 'A etiqueta de sempre')}
+  <button class="b sec" onclick="etqEscolhaFechar()">Cancelar</button>`);
+}
+function etqEscolhido(t){
+  const f = ETQ_ESC; ETQ_ESC = null; if(!f) return;
+  try{ localStorage.setItem('sap_etq_tam', t); }catch(_){}
+  fechar();
+  imprimirEtiqueta(f.id, f.idx, f.depois, false, t);
+}
+function etqEscolhaFechar(){
+  const f = ETQ_ESC; ETQ_ESC = null; fechar();
+  if(f && typeof f.depois === 'function') f.depois();
 }
 
 /* ================= 14D. ETIQUETA NA NIIMBOT B1 (Bluetooth, Aventureiro) ====
@@ -1636,10 +1674,10 @@ function canvasEtiqueta(o, i){
   return { canvas:c, cabe };
 }
 
-function niimbotEtiqueta(id, idx, idxs, depois){
+function niimbotEtiqueta(id, idx, idxs, depois, tam){
   const o = get(id); if(!o) return;
   const rs = idxs.map(i => canvasEtiqueta(o, i));
-  NB.fila = { id, idx, rs, depois };
+  NB.fila = { id, idx, rs, depois, tam };
   const ligada = NB.cli && NB.cli.isConnected();
   modal(`
   <h3>🏷️ ${rs.length > 1 ? rs.length + ' etiquetas' : 'Etiqueta'} da OS #${h(o.numero)}</h3>
@@ -1661,7 +1699,7 @@ function niimbotFechar(){
 function niimbotNavegador(){
   if(NB.ocupado) return;
   const f = NB.fila; NB.fila = null; if(!f) return;
-  imprimirEtiqueta(f.id, f.idx, f.depois, true);
+  imprimirEtiqueta(f.id, f.idx, f.depois, true, f.tam);
 }
 async function niimbotImprimir(){
   const f = NB.fila; if(!f || NB.ocupado) return;
