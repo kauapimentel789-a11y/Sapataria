@@ -120,8 +120,9 @@ nav button span{position:relative}
   nav button.on span{background:var(--c-50);border-radius:999px;padding:2px 12px;margin:-2px 0}
   .nbadge{top:-1px;right:2px;min-width:15px;height:15px;font-size:9.5px;line-height:15px}
 }
-@media(max-width:819px){nav button:nth-child(4){flex-grow:1.35} nav button:nth-child(5){flex-grow:1.55}}
-@media(max-width:420px){nav button{font-size:9.5px;letter-spacing:-.02em;text-overflow:clip}}
+/* cada aba ocupa a largura do seu nome; a sobra é dividida igualmente (cabem 10 abas no celular) */
+@media(max-width:819px){nav button{flex:1 1 auto}}
+@media(max-width:420px){nav button{font-size:9.5px;letter-spacing:-.02em;text-overflow:clip} nav button.on span{padding:2px 7px}}
 /* tablet: abas no topo */
 @media(min-width:820px) and (max-width:1099px){
   body{padding-bottom:24px}
@@ -803,7 +804,7 @@ function confirmarRetirada(id){
 /* ============================ 6. NAVEGAÇÃO ============================ */
 let aba = 'inicio';
 let F = { q:'', st:'', f:'' };
-const ABAS = [['inicio','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>','Início'],['os','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>','OS'],['pron','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>','Prontos'],['orc','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11.5h1.5M11.25 11.5h1.5M14.5 11.5H16M8 15.5h1.5M11.25 15.5h1.5M14.5 15.5H16"/></svg>','Orçamento'],['urg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>','Urgentes'],['cob','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-4a2 2 0 0 0 0 4h4v2a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6"/></svg>','Cobrança'],['vend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 14H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>','Vendas'],['cli','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>','Clientes'],['cfg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','Config']];
+const ABAS = [['inicio','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>','Início'],['os','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>','OS'],['pron','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>','Prontos'],['orc','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11.5h1.5M11.25 11.5h1.5M14.5 11.5H16M8 15.5h1.5M11.25 15.5h1.5M14.5 15.5H16"/></svg>','Orçamento'],['urg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>','Urgentes'],['atr','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5M12 2.5V5"/></svg>','Atrasadas'],['cob','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-4a2 2 0 0 0 0 4h4v2a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6"/></svg>','Cobrança'],['vend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 14H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>','Vendas'],['cli','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>','Clientes'],['cfg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','Config']];
 const $nav = document.getElementById('nav');
 const $app = document.getElementById('app');
 const $mbox = document.getElementById('mbox');
@@ -811,14 +812,15 @@ const $mbox = document.getElementById('mbox');
 function ir(a){ aba = a; window.scrollTo({top:0,behavior:'smooth'}); render(); }
 const prontosU = () => osU().filter(o => o.status === 'Pronto');
 const urgentesU = () => osU().filter(o => aberta(o) && o.prioridade === 'urgente');
+const atrasadasU = () => osU().filter(atrasada);
 function render(){
-  const nb = { pron: prontosU().length, urg: urgentesU().length };
+  const nb = { pron: prontosU().length, urg: urgentesU().length, atr: atrasadasU().length };
   $nav.innerHTML = ABAS.map(([k,i,t]) =>
     `<button class="${aba===k?'on':''}" onclick="ir('${k}')"><span>${i}${nb[k]?`<em class="nbadge">${nb[k]}</em>`:''}</span>${t}</button>`).join('');
   document.getElementById('lojaTopo').textContent = C().loja;
   renderUnbar();
   document.getElementById('logoTopo').src = LOGO;
-  ({inicio:vInicio, os:vOS, pron:vProntos, orc:vOrc, urg:vUrgentes, cob:vCob, vend:vVendas, cli:vCli, cfg:vCfg})[aba]();
+  ({inicio:vInicio, os:vOS, pron:vProntos, orc:vOrc, urg:vUrgentes, atr:vAtrasadas, cob:vCob, vend:vVendas, cli:vCli, cfg:vCfg})[aba]();
 }
 
 /* ======================= 7. CARTÃO DA OS (lista) ====================== */
@@ -1029,6 +1031,19 @@ function vUrgentes(){
   </div>
   ${l.length ? `<div class="hint" style="margin:0 2px 8px">${l.length} urgente(s) · prazo mais próximo primeiro</div>` + l.map(cartao).join('')
              : '<div class="card">Nenhuma OS urgente na fila 🎉</div>'}`;
+}
+/* ============ 10b. ATRASADAS: OS em fila com prazo vencido ============ */
+function vAtrasadas(){
+  // prazo mais antigo (mais atrasada) primeiro
+  const l = atrasadasU().sort((a,b) => a.prazo.localeCompare(b.prazo) || a.numero - b.numero);
+  const urg = l.filter(o => o.prioridade === 'urgente').length;
+  $app.innerHTML = `
+  <div class="grid">
+    <div class="card kpi"><b>${l.length}</b><small>Atrasadas na fila</small></div>
+    <div class="card kpi"><b>${urg}</b><small>Atrasadas urgentes</small></div>
+  </div>
+  ${l.length ? `<div class="hint" style="margin:0 2px 8px">${l.length} atrasada(s) · mais atrasada primeiro</div>` + l.map(cartao).join('')
+             : '<div class="card">Nenhuma OS atrasada 🎉</div>'}`;
 }
 /* ============== 11. COBRANÇA E NEGOCIAÇÃO (situações práticas) ======= */
 const SITUACOES = [
