@@ -456,8 +456,12 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
 .etq.e30 .etq-mid{padding-top:.6mm}
 .etq.e30 .etq-bot{font-size:8pt;padding-top:.5mm;line-height:1.15}
 /* Etiqueta 5×3 cm na vertical impressa pelo navegador (Sam's): é o mesmo desenho da Niimbot, como imagem */
-.etq.eimg{height:30mm;padding:0;display:block}
-.etq.eimg img{display:block;width:50mm;height:30mm}
+.etq.eimg{height:30mm;padding:0;display:block;position:relative;overflow:hidden}
+.etq.eimg img{display:block;width:50mm;height:30mm;transform-origin:50% 50%}
+.etq.eimg .tst{position:absolute;inset:1mm;border:.4mm solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;font:900 9pt Arial,sans-serif;text-align:center;line-height:1.2}
+.etq.eimg .tst::before{content:'';position:absolute;left:50%;top:0;bottom:0;border-left:.3mm dashed #000}
+.etq.eimg .tst::after{content:'';position:absolute;top:50%;left:0;right:0;border-top:.3mm dashed #000}
+.etq.eimg .tst span{background:#fff;position:relative;z-index:1;padding:0 1mm}
 </style>
 </head>
 <body>
@@ -1557,16 +1561,22 @@ function imprimirEtiqueta(id, idx, depois, navegador, tam){
   if(!idxs.length) return alert('Esta OS não tem nenhum par cadastrado.');
   if(ETQ_ESCOLHA[o.unidade] && !tam) return escolherEtiqueta(id, idx, depois);
   const vert = tam === 'v';                              // 5×3 cm na vertical (desenho da Niimbot)
-  if((ETQ_NIIMBOT[o.unidade] || vert) && !navegador) return niimbotEtiqueta(id, idx, idxs, depois, tam);
+  if(ETQ_NIIMBOT[o.unidade] && !navegador) return niimbotEtiqueta(id, idx, idxs, depois, tam);
   const T = vert ? ETQ_V : tamEtq(o);
   const rs = vert ? idxs.map(i => { const r = canvasEtiqueta(o, i, true);
-      return { cabe:r.cabe, html:`<div class="etq eimg"><img src="${r.canvas.toDataURL('image/png')}" alt=""></div>` }; })
+      return { cabe:r.cabe, html:`<div class="etq eimg" style="height:${etqAjuste().a}mm"><img src="${r.canvas.toDataURL('image/png')}" alt="" style="${etqAjusteCss()}"></div>` }; })
     : idxs.map(i => etiquetaPronta(o, i));
   if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos '+T.txt+' e será cortado. Imprimir mesmo assim?')) return;
-  document.getElementById('print').innerHTML = rs.map(r => r.html).join('');
+  etqImprimirHtml(rs.map(r => r.html).join(''), vert ? etqAjuste().a : T.h, depois);
+}
+/* Manda o HTML das etiquetas para a impressora, com a página do tamanho exato da etiqueta. */
+function etqImprimirHtml(html, alt, depois){
+  limparEtiqueta();
+  document.getElementById('print').innerHTML = html;
   const st = document.createElement('style');           // tamanho de página só durante a etiqueta
   st.id = 'etq-page';
-  st.textContent = '@page{size:50mm '+T.h+'mm;margin:0}';
+  st.textContent = '@page{size:50mm '+alt+'mm;margin:0}'
+    + (alt < 40 ? '@media print{html,body{margin:0!important;padding:0!important;width:50mm!important;height:auto!important;min-height:0!important;overflow:visible!important}}' : '');
   document.head.appendChild(st);
   document.body.classList.add('etq-mode');
   fechar();
@@ -1581,12 +1591,14 @@ function escolherEtiqueta(id, idx, depois){
   const o = get(id); if(!o) return;
   ETQ_ESC = { id, idx, depois };
   let ult = 'v'; try{ ult = localStorage.getItem('sap_etq_tam') || 'v'; }catch(_){}
+  const aj = etqAjuste(), ajTxt = (aj.x || aj.y || aj.e !== 100 || aj.a !== 30) ? ` (ajustada)` : '';
   const bt = (t, txt, sub) => `<button class="b${ult === t ? '' : ' sec'}" style="display:block;width:100%;margin:0 0 8px;text-align:left" onclick="etqEscolhido('${t}')">${txt}<br><small style="font-weight:400">${sub}</small></button>`;
   modal(`
   <h3>🏷️ Qual etiqueta? · OS #${h(o.numero)}</h3>
   <div class="hint" style="margin-bottom:10px">Escolha o tamanho da etiqueta que está na impressora.</div>
   ${bt('v', '5×3 cm · na vertical', "Igual à do Aventureiro (texto em pé)")}
   ${bt('h', '5×4 cm', 'A etiqueta de sempre')}
+  <button class="b sec" onclick="etqAjustarTela()">⚙️ Ajustar posição da 5×3${ajTxt}</button>
   <button class="b sec" onclick="etqEscolhaFechar()">Cancelar</button>`);
 }
 function etqEscolhido(t){
@@ -1594,6 +1606,60 @@ function etqEscolhido(t){
   try{ localStorage.setItem('sap_etq_tam', t); }catch(_){}
   fechar();
   imprimirEtiqueta(f.id, f.idx, f.depois, false, t);
+}
+/* Ajuste fino da 5×3 numa impressora comum (salvo neste aparelho): a impressora pode puxar o
+   papel um pouco antes/depois ou aumentar a imagem. x = para a direita, y = para baixo (mm), e = tamanho (%). */
+function etqAjuste(){
+  let a = {}; try{ a = JSON.parse(localStorage.getItem('sap_etq_ajuste') || '{}') || {}; }catch(_){}
+  const n = (v, d) => isFinite(+v) && v !== '' && v != null ? +v : d;
+  return { x:n(a.x, 0), y:n(a.y, 0), e:n(a.e, 100), a:n(a.a, 30) };
+}
+function etqAjusteCss(){
+  const a = etqAjuste();
+  return `transform:translate(${a.x}mm,${a.y}mm) scale(${a.e / 100})`;
+}
+function etqAjustarTela(){
+  const a = etqAjuste();
+  const campo = (id, rot, v, dica) => `<label style="display:block;margin:8px 0 2px;font-weight:600">${rot}</label>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button type="button" class="b sec sm" onclick="etqAjPasso('${id}',-${id === 'aje' ? 2 : .5})">−</button>
+      <input id="${id}" type="number" step="${id === 'aje' ? 1 : .5}" value="${v}" style="width:90px;text-align:center">
+      <button type="button" class="b sec sm" onclick="etqAjPasso('${id}',${id === 'aje' ? 2 : .5})">+</button>
+    </div><div class="hint">${dica}</div>`;
+  modal(`
+  <h3>⚙️ Ajustar a etiqueta 5×3</h3>
+  <div class="hint">Imprima a etiqueta de teste: ela tem uma moldura 1 mm para dentro da borda e uma cruz no meio.
+  Veja para que lado ela saiu torta e corrija aqui. Fica salvo neste aparelho.</div>
+  ${campo('ajy', 'Para cima / para baixo (mm)', a.y, 'Número positivo desce a impressão; negativo sobe. Se o texto passou para a etiqueta de baixo, use negativo.')}
+  ${campo('ajx', 'Para a esquerda / direita (mm)', a.x, 'Positivo vai para a direita; negativo, para a esquerda.')}
+  ${campo('aje', 'Tamanho (%)', a.e, 'Se a moldura saiu maior que a etiqueta, diminua (ex.: 90).')}
+  ${campo('aja', 'Altura da página (mm)', a.a, 'Normal: 30. Se cada etiqueta sai um pouco mais para baixo que a anterior, aumente (ex.: 32 ou 33, contando o espaço entre as etiquetas).')}
+  <div style="margin-top:12px">
+    <button class="b" onclick="etqAjSalvar(true)">🖨️ Salvar e imprimir teste</button>
+    <button class="b sec" onclick="etqAjSalvar(false)">Salvar</button>
+    <button class="b sec" onclick="document.getElementById('ajx').value=0;document.getElementById('ajy').value=0;document.getElementById('aje').value=100;document.getElementById('aja').value=30">Zerar</button>
+    <button class="b sec" onclick="etqAjVoltar()">Voltar</button>
+  </div>`);
+}
+function etqAjPasso(id, d){
+  const el = document.getElementById(id);
+  el.value = Math.round(((+el.value || 0) + d) * 10) / 10;
+}
+function etqAjSalvar(teste){
+  const v = id => +document.getElementById(id).value || 0;
+  const a = { x:v('ajx'), y:v('ajy'), e:v('aje') || 100, a:Math.min(60, Math.max(20, v('aja') || 30)) };
+  try{ localStorage.setItem('sap_etq_ajuste', JSON.stringify(a)); }catch(_){}
+  if(!teste) return etqAjVoltar();
+  const m = document.createElement('canvas'); m.width = 400; m.height = 240;     // página em branco do tamanho da etiqueta
+  const g = m.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 240);
+  const um = n => `<div class="etq eimg" style="height:${a.a}mm"><div style="position:absolute;left:0;top:0;width:50mm;height:30mm;${etqAjusteCss()}">
+      <img src="${m.toDataURL('image/png')}" alt="" style="position:absolute;inset:0">
+      <div class="tst"><span>TESTE ${n}/2</span><span>↑ topo</span></div></div></div>`;
+  etqImprimirHtml(um(1) + um(2), a.a, null);           // 2 etiquetas: mostra se a posição vai andando
+}
+function etqAjVoltar(){
+  const f = ETQ_ESC;
+  if(f) escolherEtiqueta(f.id, f.idx, f.depois); else fechar();
 }
 function etqEscolhaFechar(){
   const f = ETQ_ESC; ETQ_ESC = null; fechar();
