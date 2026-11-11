@@ -1564,10 +1564,10 @@ function imprimirEtiqueta(id, idx, depois, navegador, tam){
   if(ETQ_NIIMBOT[o.unidade] && !navegador) return niimbotEtiqueta(id, idx, idxs, depois, tam);
   const T = vert ? ETQ_V : tamEtq(o);
   const rs = vert ? idxs.map(i => { const r = canvasEtiqueta(o, i, true);
-      return { cabe:r.cabe, html:`<div class="etq eimg"><img src="${r.canvas.toDataURL('image/png')}" alt="" style="${etqAjusteCss()}"></div>` }; })
+      return { cabe:r.cabe, html:`<div class="etq eimg" style="height:${etqAjuste().a}mm"><img src="${r.canvas.toDataURL('image/png')}" alt="" style="${etqAjusteCss()}"></div>` }; })
     : idxs.map(i => etiquetaPronta(o, i));
   if(rs.some(r => !r.cabe) && !confirm('O texto de alguma etiqueta não cabe inteiro nos '+T.txt+' e será cortado. Imprimir mesmo assim?')) return;
-  etqImprimirHtml(rs.map(r => r.html).join(''), T.h, depois);
+  etqImprimirHtml(rs.map(r => r.html).join(''), vert ? etqAjuste().a : T.h, depois);
 }
 /* Manda o HTML das etiquetas para a impressora, com a página do tamanho exato da etiqueta. */
 function etqImprimirHtml(html, alt, depois){
@@ -1591,7 +1591,7 @@ function escolherEtiqueta(id, idx, depois){
   const o = get(id); if(!o) return;
   ETQ_ESC = { id, idx, depois };
   let ult = 'v'; try{ ult = localStorage.getItem('sap_etq_tam') || 'v'; }catch(_){}
-  const aj = etqAjuste(), ajTxt = (aj.x || aj.y || aj.e !== 100) ? ` (ajuste: ${aj.x} / ${aj.y} mm, ${aj.e}%)` : '';
+  const aj = etqAjuste(), ajTxt = (aj.x || aj.y || aj.e !== 100 || aj.a !== 30) ? ` (ajustada)` : '';
   const bt = (t, txt, sub) => `<button class="b${ult === t ? '' : ' sec'}" style="display:block;width:100%;margin:0 0 8px;text-align:left" onclick="etqEscolhido('${t}')">${txt}<br><small style="font-weight:400">${sub}</small></button>`;
   modal(`
   <h3>🏷️ Qual etiqueta? · OS #${h(o.numero)}</h3>
@@ -1612,7 +1612,7 @@ function etqEscolhido(t){
 function etqAjuste(){
   let a = {}; try{ a = JSON.parse(localStorage.getItem('sap_etq_ajuste') || '{}') || {}; }catch(_){}
   const n = (v, d) => isFinite(+v) && v !== '' && v != null ? +v : d;
-  return { x:n(a.x, 0), y:n(a.y, 0), e:n(a.e, 100) };
+  return { x:n(a.x, 0), y:n(a.y, 0), e:n(a.e, 100), a:n(a.a, 30) };
 }
 function etqAjusteCss(){
   const a = etqAjuste();
@@ -1633,10 +1633,11 @@ function etqAjustarTela(){
   ${campo('ajy', 'Para cima / para baixo (mm)', a.y, 'Número positivo desce a impressão; negativo sobe. Se o texto passou para a etiqueta de baixo, use negativo.')}
   ${campo('ajx', 'Para a esquerda / direita (mm)', a.x, 'Positivo vai para a direita; negativo, para a esquerda.')}
   ${campo('aje', 'Tamanho (%)', a.e, 'Se a moldura saiu maior que a etiqueta, diminua (ex.: 90).')}
+  ${campo('aja', 'Altura da página (mm)', a.a, 'Normal: 30. Se cada etiqueta sai um pouco mais para baixo que a anterior, aumente (ex.: 32 ou 33, contando o espaço entre as etiquetas).')}
   <div style="margin-top:12px">
     <button class="b" onclick="etqAjSalvar(true)">🖨️ Salvar e imprimir teste</button>
     <button class="b sec" onclick="etqAjSalvar(false)">Salvar</button>
-    <button class="b sec" onclick="document.getElementById('ajx').value=0;document.getElementById('ajy').value=0;document.getElementById('aje').value=100">Zerar</button>
+    <button class="b sec" onclick="document.getElementById('ajx').value=0;document.getElementById('ajy').value=0;document.getElementById('aje').value=100;document.getElementById('aja').value=30">Zerar</button>
     <button class="b sec" onclick="etqAjVoltar()">Voltar</button>
   </div>`);
 }
@@ -1646,14 +1647,15 @@ function etqAjPasso(id, d){
 }
 function etqAjSalvar(teste){
   const v = id => +document.getElementById(id).value || 0;
-  const a = { x:v('ajx'), y:v('ajy'), e:v('aje') || 100 };
+  const a = { x:v('ajx'), y:v('ajy'), e:v('aje') || 100, a:Math.min(60, Math.max(20, v('aja') || 30)) };
   try{ localStorage.setItem('sap_etq_ajuste', JSON.stringify(a)); }catch(_){}
   if(!teste) return etqAjVoltar();
   const m = document.createElement('canvas'); m.width = 400; m.height = 240;     // página em branco do tamanho da etiqueta
   const g = m.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 240);
-  etqImprimirHtml(`<div class="etq eimg"><div style="position:absolute;inset:0;${etqAjusteCss()}">
+  const um = n => `<div class="etq eimg" style="height:${a.a}mm"><div style="position:absolute;left:0;top:0;width:50mm;height:30mm;${etqAjusteCss()}">
       <img src="${m.toDataURL('image/png')}" alt="" style="position:absolute;inset:0">
-      <div class="tst"><span>TESTE 5×3</span><span>↑ topo</span></div></div></div>`, 30, null);
+      <div class="tst"><span>TESTE ${n}/2</span><span>↑ topo</span></div></div></div>`;
+  etqImprimirHtml(um(1) + um(2), a.a, null);           // 2 etiquetas: mostra se a posição vai andando
 }
 function etqAjVoltar(){
   const f = ETQ_ESC;
