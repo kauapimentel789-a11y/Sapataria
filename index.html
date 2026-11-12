@@ -468,7 +468,7 @@ label{font-size:12.5px;color:var(--mut);font-weight:500;display:block;letter-spa
 <div id="splash"><img id="logoSplash" alt=""><div class="ln"></div></div>
 <header>
   <h1><img class="logo" id="logoTopo" alt="Logo"><span><span id="lojaTopo">Sapataria</span><span class="sub">Controle e programação de produção</span></span></h1>
-  <button class="b sm" onclick="formOS()">+ Nova OS</button>
+  <button class="b sm" onclick="formOS()">+ Novo</button>
 </header>
 
 <div id="unbar"></div>
@@ -808,7 +808,7 @@ function confirmarRetirada(id){
 /* ============================ 6. NAVEGAÇÃO ============================ */
 let aba = 'inicio';
 let F = { q:'', st:'', f:'' };
-const ABAS = [['inicio','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>','Início'],['os','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>','OS'],['pron','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>','Prontos'],['orc','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11.5h1.5M11.25 11.5h1.5M14.5 11.5H16M8 15.5h1.5M11.25 15.5h1.5M14.5 15.5H16"/></svg>','Orçamento'],['urg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>','Urgentes'],['atr','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5M12 2.5V5"/></svg>','Atrasadas'],['cob','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-4a2 2 0 0 0 0 4h4v2a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6"/></svg>','Cobrança'],['vend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 14H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>','Vendas'],['cli','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>','Clientes'],['cfg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','Config']];
+const ABAS = [['inicio','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>','Início'],['os','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>','OS'],['pron','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>','Prontos'],['urg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>','Urgentes'],['atr','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5M12 2.5V5"/></svg>','Atrasadas'],['cob','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-4a2 2 0 0 0 0 4h4v2a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6"/></svg>','Cobrança'],['cli','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>','Clientes'],['cfg','<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>','Config']];
 const $nav = document.getElementById('nav');
 const $app = document.getElementById('app');
 const $mbox = document.getElementById('mbox');
@@ -1282,6 +1282,7 @@ function formOS(id, orcId){
   PAR_ATIVO = 0;
   PAGS = id ? (o.pagamentos||[]).map(p => ({ data:p.data, dia:diaDe(p.data) || hoje(), valor:+p.valor || '', forma:p.forma || 'Pix' })) : [];
   modal(`
+  ${!id && !orc ? novoSeg('os') : ''}
   <h3>${id ? `Editar OS #${o.numero}` : orc ? `Dar entrada no serviço · orçamento ${orc.numero}` : 'Nova Ordem de Serviço'}</h3>
   ${id ? `<div class="hint" style="margin-bottom:6px">Aqui dá para mudar tudo: o que foi feito, valores, pagamentos e status. Cada alteração fica registrada no histórico da OS.</div>` : ''}
   ${orc ? `<div class="hint" style="margin-bottom:6px">Dados trazidos do orçamento. Confira, ajuste o prazo e salve para o serviço entrar na produção.</div>` : ''}
@@ -2125,6 +2126,7 @@ function formOrc(id){
   if(!PARES.length) PARES = [{ fazer:'', horas:+C().tempoPar || 1, valor:'' }];
   PAR_ATIVO = 0;
   modal(`
+  ${id ? '' : novoSeg('orc')}
   <h3>${id ? 'Editar orçamento ' + x.numero : 'Novo orçamento'}</h3>
   <div class="hint" style="margin-bottom:8px">O orçamento não entra na produção nem no caixa. Só vira serviço quando o cliente aprovar.</div>
   <div class="row">
@@ -2144,7 +2146,7 @@ function formOrc(id){
   <button class="b" onclick="salvarOrc(${id||0})">Salvar orçamento</button>
   ${id ? '' : `<button class="b wa" onclick="salvarOrc(0, true)">Salvar e enviar no WhatsApp</button>`}
   <button class="b sec" onclick="fechar()">Cancelar</button>
-  ${id ? `<button class="b er" onclick="excluirOrc(${id})">Excluir</button>` : ''}`);
+  ${id ? `<button class="b er" onclick="excluirOrc(${id})">Excluir</button>` : `<button class="b sec" onclick="fechar();ir('orc')">📋 Ver orçamentos feitos</button>`}`);
   renderPares(); somaPares();
 }
 function salvarOrc(id, enviar){
@@ -2314,11 +2316,51 @@ function lerVenda(p){
   if(!data){ alert('Informe a data.'); return null; }
   return { produto, qtd, valor, data, forma:g('f').value, unidade:g('u').value };
 }
-function registrarVenda(){
-  const d = lerVenda('v'); if(!d) return;
+function registrarVenda(p){
+  const d = lerVenda(p || 'v'); if(!d) return;
   (S.vendas = S.vendas || []).push(Object.assign({ id:Date.now(), criada:agora() }, d));
   localStorage.setItem('sap_uf', d.unidade);
-  save(); render();
+  save(); if(p) fechar(); render();
+  if(p) setTimeout(() => alert(`Venda registrada: ${d.produto} × ${d.qtd} · ${R(d.valor)}`), 50);
+}
+
+/* ===== Janela "+ Novo": Nova OS, Orçamento e Venda no mesmo lugar =====
+   O botão do topo abre a Nova OS com três abas em cima. Trocar de aba
+   leva junto o nome e o telefone já digitados (entre OS e orçamento). */
+const NOVO_ABAS = [['os','🧾 Nova OS'],['orc','📝 Orçamento'],['vend','🛍️ Venda']];
+const novoSeg = k => `<div class="seg" style="margin-bottom:10px">${NOVO_ABAS.map(([a,t]) =>
+  `<button class="b sm ${a===k?'':'sec'}" onclick="novo('${a}')">${t}</button>`).join('')}</div>`;
+function novo(k){
+  const v = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+  const cli = v('fc'), tel = v('ft');
+  k === 'orc' ? formOrc() : k === 'vend' ? formVenda() : formOS();
+  if(k !== 'vend'){
+    if(cli) document.getElementById('fc').value = cli;
+    if(tel) document.getElementById('ft').value = tel;
+  }
+  $mbox.scrollTop = 0;
+}
+function formVenda(){
+  const nomes = [...new Set((S.vendas || []).map(v => v.produto))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+  modal(`
+  ${novoSeg('vend')}
+  <h3>Registrar venda</h3>
+  <div class="hint" style="margin-bottom:8px">Venda de produto no balcão (cadarço, palmilha, graxa…). Não abre OS.</div>
+  <label>O que foi vendido</label>
+  <input id="np" list="nnomes" placeholder="ex.: cadarço, palmilha, graxa" autocomplete="off">
+  <datalist id="nnomes">${nomes.map(n => `<option value="${h(n)}">`).join('')}</datalist>
+  <div class="row3">
+    <div><label>Quantidade</label><input id="nq" type="number" min="1" step="1" inputmode="numeric" value="1"></div>
+    <div><label>Valor total (R$)</label><input id="nv" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>Data</label><input id="nd" type="date" value="${hoje()}"></div>
+  </div>
+  <div class="row">
+    <div><label>Forma de pagamento</label><select id="nf">${optForma('Pix')}</select></div>
+    <div><label>Unidade</label><select id="nu">${optUn(uDef())}</select></div>
+  </div>
+  <button class="b ok" onclick="registrarVenda('n')">✔ Registrar venda</button>
+  <button class="b sec" onclick="fechar()">Cancelar</button>
+  <button class="b sec" onclick="fechar();ir('vend')">📋 Ver vendas e relatório</button>`);
 }
 function editarVenda(id){
   const v = (S.vendas || []).find(x => x.id === id); if(!v) return;
